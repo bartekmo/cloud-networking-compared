@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Feature-focused comparison of Azure, AWS, and GCP networking services with Mermaid diagrams and links to public documentation. AI-generated, so verify details before acting.">
+<link rel="canonical" href="https://adstuart.github.io/cloud-networking-compared/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cloud Networking Compared">
+<meta property="og:title" content="Cloud Networking Compared">
+<meta property="og:description" content="Feature-focused comparison of Azure, AWS, and GCP networking services with Mermaid diagrams and links to public documentation. AI-generated, so verify details before acting.">
+<meta property="og:url" content="https://adstuart.github.io/cloud-networking-compared/">
+<meta property="og:image" content="https://adstuart.github.io/cloud-networking-compared/social-preview-v2.png">
+<meta property="og:image:secure_url" content="https://adstuart.github.io/cloud-networking-compared/social-preview-v2.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Preview of Cloud Networking Compared showing Mermaid diagrams for Azure, AWS, and GCP networking features.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cloud Networking Compared">
+<meta name="twitter:description" content="Feature-focused comparison of Azure, AWS, and GCP networking services with Mermaid diagrams and links to public documentation.">
+<meta name="twitter:image" content="https://adstuart.github.io/cloud-networking-compared/social-preview-v2.png">
+<meta name="twitter:image:alt" content="Preview of Cloud Networking Compared showing Mermaid diagrams for Azure, AWS, and GCP networking features.">
+<title>Cloud Networking Compared</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --azure: #0078D4;
+    --aws: #FF9900;
+    --gcp: #EA4335;
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+
+  /* Layout */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 0; position: fixed; top: 0; bottom: 0; overflow-y: auto; }
+  .main { margin-left: 260px; flex: 1; padding: 32px 40px; max-width: 1400px; }
+
+  /* Sidebar */
+  .logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .logo h1 { font-size: 16px; font-weight: 600; }
+  .logo p { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .nav-section { padding: 4px 12px; }
+  .nav-item { display: block; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--text-dim); transition: all 0.15s; text-decoration: none; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .nav-item.active { background: var(--surface2); color: var(--accent); font-weight: 500; }
+  .nav-count { float: right; font-size: 11px; background: var(--surface2); padding: 1px 6px; border-radius: 10px; }
+
+  /* Header */
+  .header { margin-bottom: 32px; }
+  .header h2 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+  .header p { color: var(--text-dim); font-size: 14px; }
+  .cloud-logos { display: flex; gap: 24px; margin-top: 16px; }
+  .cloud-logo { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+  .cloud-logo .cl-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .cloud-logo.azure { color: var(--azure); }
+  .cloud-logo.azure .cl-dot { background: var(--azure); }
+  .cloud-logo.aws { color: var(--aws); }
+  .cloud-logo.aws .cl-dot { background: var(--aws); }
+  .cloud-logo.gcp { color: var(--gcp); }
+  .cloud-logo.gcp .cl-dot { background: var(--gcp); }
+
+  /* Search & Controls */
+  .controls { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; }
+  .search-box { flex: 1; min-width: 200px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; outline: none; }
+  .search-box:focus { border-color: var(--accent); }
+
+  /* Feature Cards */
+  .features-grid { display: flex; flex-direction: column; gap: 16px; }
+  .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: border-color 0.15s; }
+  .feature-card:hover { border-color: var(--text-dim); }
+  .feature-card.highlight { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+  .card-header { padding: 16px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+  .card-header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .card-title { font-size: 15px; font-weight: 600; }
+  .chevron { color: var(--text-dim); transition: transform 0.2s; font-size: 12px; }
+  .feature-card.open .chevron { transform: rotate(90deg); }
+
+  .card-body { display: none; padding: 0 20px 20px; }
+  .feature-card.open .card-body { display: block; }
+
+  .comparison-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+  .cloud-col { padding: 12px; border-radius: 6px; background: var(--surface2); }
+  .cloud-col h4 { font-size: 13px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .cloud-col h4 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .cloud-col h4 .dot.azure { background: var(--azure); }
+  .cloud-col h4 .dot.aws { background: var(--aws); }
+  .cloud-col h4 .dot.gcp { background: var(--gcp); }
+  .cloud-col .name { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .cloud-col .name a { color: inherit; text-decoration: none; border-bottom: 1px dashed var(--border); transition: border-color 0.15s; }
+  .cloud-col .name a:hover { border-color: var(--accent); color: var(--accent); }
+  .cloud-col .desc { font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
+  .cloud-col .detail { font-size: 12px; color: var(--text-dim); font-style: italic; }
+  .cloud-col.no-equiv { opacity: 0.7; border-left: 2px dashed var(--border); }
+
+  .differences { padding: 12px; background: var(--surface2); border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #8b949e; }
+  .differences h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #8b949e; }
+  .differences p { font-size: 13px; color: var(--text-dim); }
+
+  .practitioner-note { padding: 12px; background: rgba(139,148,158,0.05); border-radius: 6px; border-left: 3px solid #8b949e; }
+  .practitioner-note h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #8b949e; }
+  .practitioner-note p { font-size: 13px; color: var(--text-dim); }
+
+  /* Per-cloud mini diagrams */
+  .cloud-diagram { margin-top: 8px; padding: 6px; background: rgba(255,255,255,0.03); border-radius: 4px; }
+  .cloud-diagram .mermaid { background: transparent; }
+  .cloud-diagram .mermaid svg { max-width: 100%; max-height: 120px; }
+
+  /* Category group headers */
+  .category-group { margin-bottom: 8px; }
+  .category-header { font-size: 13px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+
+  /* Stats bar */
+  .stats { display: flex; gap: 24px; margin-bottom: 24px; }
+  .stat { font-size: 13px; color: var(--text-dim); }
+  .stat strong { color: var(--text); }
+
+  .mobile-cats { display: none; margin-bottom: 16px; }
+  .mobile-cats select { width: 100%; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .comparison-row { grid-template-columns: 1fr; }
+    .main { padding: 24px 20px; }
+  }
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 16px; }
+    .mobile-cats { display: block; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="sidebar">
+    <div class="logo">
+      <h1>☁️ Cloud Networking Compared</h1>
+      <p>Azure · AWS · GCP</p>
+    </div>
+    <div class="nav-section" role="tablist" aria-label="Feature categories" id="nav-categories"></div>
+  </nav>
+
+  <main class="main">
+    <div class="header">
+      <h2>Cloud Networking Compared</h2>
+      <p>Click any feature to explore, and click a feature name to open the public documentation. Those docs are the single source of truth, so treat this AI-generated comparison as a starting point and verify details before acting on them.</p>
+      <div class="cloud-logos">
+        <div class="cloud-logo azure"><span class="cl-dot"></span> Microsoft Azure</div>
+        <div class="cloud-logo aws"><span class="cl-dot"></span> Amazon Web Services</div>
+        <div class="cloud-logo gcp"><span class="cl-dot"></span> Google Cloud Platform</div>
+      </div>
+    </div>
+
+    <div class="mobile-cats">
+      <select id="mobile-cat" onchange="setMobileCategory(this.value)">
+        <option value="">All Features</option>
+      </select>
+    </div>
+
+    <div class="controls">
+      <input type="text" class="search-box" id="search" placeholder="Search features across all clouds (e.g. Transit Gateway, Private Link, VPC)..." />
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <div class="features-grid" id="features"></div>
+
+  </main>
+</div>
+
+<script>
+mermaid.initialize({ startOnLoad: false, theme: 'dark', themeVariables: { primaryColor: '#21262d', primaryTextColor: '#e6edf3', primaryBorderColor: '#30363d', lineColor: '#58a6ff', secondaryColor: '#161b22', tertiaryColor: '#0d1117' }});
+
+let allFeatures = [];
+let allCategories = [];
+let activeCategory = null;
+
+async function loadData() {
+  try {
+    const resp = await fetch('data/combined.json');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    allFeatures = data.features || [];
+    allCategories = data.categories || [];
+    buildNav(allCategories);
+    renderFeatures();
+    updateStats();
+  } catch (e) {
+    document.getElementById('features').innerHTML = `<div style="padding:20px;color:#f85149;">Failed to load data: ${e.message}. Serve via HTTP (python3 -m http.server).</div>`;
+  }
+}
+
+function buildNav(categories) {
+  const nav = document.getElementById('nav-categories');
+  const allItem = document.createElement('a');
+  allItem.className = 'nav-item active';
+  allItem.textContent = 'All Features';
+  allItem.href = '#';
+  allItem.setAttribute('role', 'tab');
+  allItem.setAttribute('aria-selected', 'true');
+  allItem.dataset.category = '';
+  allItem.onclick = (e) => { e.preventDefault(); setCategory(null, allItem); };
+  nav.appendChild(allItem);
+
+  categories.forEach(cat => {
+    const count = allFeatures.filter(f => f.category === cat.id).length;
+    const item = document.createElement('a');
+    item.className = 'nav-item';
+    item.href = '#';
+    item.setAttribute('role', 'tab');
+    item.setAttribute('aria-selected', 'false');
+    item.innerHTML = `${cat.name} <span class="nav-count">${count}</span>`;
+    item.dataset.category = cat.id;
+    item.onclick = (e) => { e.preventDefault(); setCategory(cat.id, item); };
+    nav.appendChild(item);
+
+    // Also populate mobile dropdown
+    const opt = document.createElement('option');
+    opt.value = cat.id;
+    opt.textContent = `${cat.name} (${count})`;
+    document.getElementById('mobile-cat').appendChild(opt);
+  });
+}
+
+function setCategory(catId, el) {
+  activeCategory = catId;
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.remove('active');
+    n.setAttribute('aria-selected', 'false');
+  });
+  el.classList.add('active');
+  el.setAttribute('aria-selected', 'true');
+  renderFeatures();
+}
+
+function renderFeatures() {
+  const container = document.getElementById('features');
+  const query = document.getElementById('search').value.toLowerCase();
+
+  const filtered = allFeatures.filter(f => {
+    if (activeCategory && f.category !== activeCategory) return false;
+    if (query) {
+      const names = [f.conceptName, f.azure?.name, f.aws?.name, f.gcp?.name].filter(Boolean).join(' ').toLowerCase();
+      const rest = [f.azure?.description, f.aws?.description, f.gcp?.description, f.differences, f.practitionerNote].filter(Boolean).join(' ').toLowerCase();
+      if (query.length <= 4) {
+        const re = new RegExp('\\b' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+        if (!re.test(names) && !re.test(rest)) return false;
+      } else {
+        if (!names.includes(query) && !rest.includes(query)) return false;
+      }
+    }
+    return true;
+  });
+
+  // Group by category when showing all
+  const catMap = Object.fromEntries(allCategories.map(c => [c.id, c.name]));
+  let html = '';
+
+  if (!activeCategory && !query) {
+    const grouped = {};
+    filtered.forEach(f => {
+      const cat = f.category || 'other';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(f);
+    });
+    const catOrder = allCategories.map(c => c.id);
+    catOrder.forEach(catId => {
+      if (!grouped[catId] || grouped[catId].length === 0) return;
+      html += `<div class="category-group">
+        <div class="category-header">${catMap[catId] || catId} (${grouped[catId].length})</div>
+        ${grouped[catId].map(f => renderCard(f)).join('')}
+      </div>`;
+    });
+  } else {
+    html = filtered.map(f => renderCard(f)).join('');
+  }
+
+  container.innerHTML = html || '<div style="padding:20px;color:var(--text-dim);">No features match your search.</div>';
+  updateStats(filtered.length);
+}
+
+function renderCard(f) {
+  return `
+    <div class="feature-card" data-id="${f.id}">
+      <div class="card-header" role="button" tabindex="0" aria-expanded="false" onclick="toggleCard(this.parentElement)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCard(this.parentElement);}">
+        <div class="card-title">${getDisplayName(f)}</div>
+        <span class="chevron" aria-hidden="true">▶</span>
+      </div>
+      <div class="card-body" role="region">
+        <div class="comparison-row">
+          ${renderCloudCol('azure', f.azure)}
+          ${renderCloudCol('aws', f.aws)}
+          ${renderCloudCol('gcp', f.gcp)}
+        </div>
+        ${f.differences ? `<div class="differences"><h4>⚖️ Key Differences</h4><p>${f.differences}</p></div>` : ''}
+        ${f.practitionerNote ? `<div class="practitioner-note"><h4>💡 Practitioner Note</h4><p>${f.practitionerNote}</p></div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function setMobileCategory(catId) {
+  activeCategory = catId || null;
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', (n.dataset.category || '') === (catId || ''));
+  });
+  renderFeatures();
+}
+
+function getDisplayName(f) {
+  return f.conceptName || f.azure?.name || f.aws?.name || f.gcp?.name || f.id;
+}
+
+function renderCloudCol(cloud, data) {
+  if (!data) return '';
+  const noEquiv = data.name?.toLowerCase().includes('no direct');
+  const nameHtml = data.url ? `<a href="${data.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${data.name || '—'}</a>` : (data.name || '—');
+  const diagramHtml = data.diagram ? `<div class="cloud-diagram"><pre class="mermaid">${data.diagram}</pre></div>` : '';
+  return `
+    <div class="cloud-col ${noEquiv ? 'no-equiv' : ''}">
+      <h4><span class="dot ${cloud}"></span>${cloud.toUpperCase()}</h4>
+      <div class="name">${nameHtml}</div>
+      <div class="desc">${data.description || ''}</div>
+      ${data.keyDetail ? `<div class="detail">${data.keyDetail}</div>` : ''}
+      ${diagramHtml}
+    </div>
+  `;
+}
+
+function toggleCard(el) {
+  const isOpen = el.classList.toggle('open');
+  const header = el.querySelector('.card-header');
+  if (header) header.setAttribute('aria-expanded', isOpen);
+  if (isOpen) {
+    const diagrams = el.querySelectorAll('.mermaid:not([data-processed])');
+    if (diagrams.length) mermaid.run({ nodes: diagrams });
+  }
+}
+
+function updateStats(shown) {
+  const total = allFeatures.length;
+  const cats = new Set(allFeatures.map(f => f.category)).size;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><strong>${shown ?? total}</strong> features</div>
+    <div class="stat"><strong>${cats}</strong> categories</div>
+    <div class="stat"><strong>3</strong> clouds</div>
+  `;
+}
+
+// Event listeners
+document.getElementById('search').addEventListener('input', renderFeatures);
+loadData();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# QA and development artifacts
+audit*
+data/dd-*.json
+data/deep-dives.json
+data/diagrams-batch*.py
+data/fundamentals-topology.json
+data/hybrid-sdwan-multicloud.json
+data/security-dns.json
+data/appdelivery-monitoring.json
+data/qa-*.json
+*.pyc
+__pycache__/

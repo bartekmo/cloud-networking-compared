@@ -1,0 +1,1665 @@
+{
+  "categories": [
+    {
+      "id": "fundamentals",
+      "name": "Fundamentals"
+    },
+    {
+      "id": "topology",
+      "name": "Topology"
+    },
+    {
+      "id": "hybrid",
+      "name": "Hybrid Connectivity"
+    },
+    {
+      "id": "security",
+      "name": "Security"
+    },
+    {
+      "id": "dns-paas",
+      "name": "DNS & PaaS"
+    },
+    {
+      "id": "app-delivery",
+      "name": "App Delivery"
+    },
+    {
+      "id": "monitoring",
+      "name": "Monitoring"
+    },
+    {
+      "id": "operations",
+      "name": "Operations & IaC"
+    }
+  ],
+  "features": [
+    {
+      "id": "virtual-network",
+      "category": "fundamentals",
+      "azure": {
+        "name": "Virtual Network (VNet)",
+        "description": "Regional isolated network boundary for Azure resources. Subnets span all Availability Zones within the region, so resources can move zones without re-IP.",
+        "keyDetail": "Regional scope. Up to 1,000 VNets per subscription per region. Supports multiple address spaces per VNet.",
+        "diagram": "graph TD\n  VNet[\"VNet\\n(Regional)\"] --> S1[Subnet 1]\n  VNet --> S2[Subnet 2]\n  style VNet fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview"
+      },
+      "aws": {
+        "name": "Virtual Private Cloud (VPC)",
+        "description": "Regional isolated network boundary for AWS resources. Subnets are tied to individual Availability Zones, giving granular fault-domain isolation.",
+        "keyDetail": "Regional scope. Default limit of 5 VPCs per region (soft limit, increasable). Up to 5 CIDR blocks per VPC by default (max 50, raisable).",
+        "diagram": "graph TD\n  VPC[\"VPC\\n(Regional)\"] --> S1[\"Subnet 1\\n(AZ-a)\"]\n  VPC --> S2[\"Subnet 2\\n(AZ-b)\"]\n  style VPC fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html"
+      },
+      "gcp": {
+        "name": "Virtual Private Cloud (VPC)",
+        "description": "Global network boundary that spans all GCP regions. Subnets are regional but the VPC itself is a single global object, fundamentally different from Azure and AWS.",
+        "keyDetail": "Global scope. Default limit of 15 VPCs per project (increasable). Up to 500 subnets per VPC.",
+        "diagram": "graph TD\n  VPC[\"VPC\\n(Global)\"] --> S1[\"Subnet\\nus-east1\"]\n  VPC --> S2[\"Subnet\\neu-west1\"]\n  style VPC fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/vpc/docs/overview"
+      },
+      "differences": "GCP VPC is global by default, while Azure VNet and AWS VPC are regional. Azure subnets span all AZs in a region, AWS subnets are pinned to a single AZ, and GCP subnets are regional within a global VPC. This fundamentally changes multi-region design: GCP needs one VPC for all regions, whereas Azure/AWS need a VNet/VPC per region.",
+      "practitionerNote": "GCP's global VPC is both a significant architectural difference \u2014 simpler for multi-region but you lose the blast-radius isolation that separate regional VNets/VPCs give you. In practice, many organisations on GCP use multiple VPCs for segmentation despite the global model.",
+      "conceptName": "Virtual Network / VPC"
+    },
+    {
+      "id": "subnet",
+      "category": "fundamentals",
+      "azure": {
+        "name": "Subnet",
+        "description": "A subdivision of a VNet address space. Subnets span all Availability Zones in the region, so VMs can be placed in any zone without changing subnet or IP.",
+        "keyDetail": "Regional scope (spans all AZs). Up to 3,000 subnets per VNet. Azure reserves 5 IPs per subnet for platform use.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-manage-subnet",
+        "diagram": "graph TD\n  Sub[\"Subnet\\n(Regional)\"] --> AZ1[\"AZ 1\"]\n  Sub --> AZ2[\"AZ 2\"]\n  Sub --> AZ3[\"AZ 3\"]\n  style Sub fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Subnet",
+        "description": "A subdivision of a VPC tied to a specific Availability Zone. Each subnet exists in exactly one AZ, requiring explicit multi-AZ subnet design for HA.",
+        "keyDetail": "Zonal scope (one AZ per subnet). Up to 200 subnets per VPC. AWS reserves 5 IPs per subnet.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/configure-subnets.html",
+        "diagram": "graph TD\n  RT[\"Route Table\"] --> Sub[\"Subnet\\n(Single AZ)\"]\n  Sub --> AZ[\"AZ-a\"]\n  style Sub fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Subnet (Subnetwork)",
+        "description": "A regional IP range within a global VPC. Subnets span all zones in the region, similar to Azure. Can use auto-mode (auto-creates one subnet per region) or custom mode.",
+        "keyDetail": "Regional scope (spans all zones). Up to 500 subnets per VPC (hard system limit, not raisable). GCP reserves 4 IPs per subnet.",
+        "url": "https://cloud.google.com/vpc/docs/subnets",
+        "diagram": "graph TD\n  Sub[\"Subnet\\n(Regional)\"] --> Auto[\"Auto-expand\\nIP range\"]\n  style Sub fill:#EA4335,color:#fff"
+      },
+      "differences": "AWS subnets are zonal \u2014 you must create separate subnets per AZ for HA, which multiplies subnet count significantly. Azure and GCP subnets are regional, spanning all zones. GCP's auto-mode VPC pre-creates subnets in every region, while Azure and AWS require explicit creation.",
+      "practitionerNote": "AWS's zonal subnet model means a simple 3-tier app across 3 AZs needs 9 subnets minimum. The same design in Azure or GCP needs only 3. This compounds fast in large environments and is a key difference for engineers moving between clouds.",
+      "conceptName": "Subnet"
+    },
+    {
+      "id": "public-ip-address",
+      "category": "fundamentals",
+      "azure": {
+        "name": "Public IP Address",
+        "description": "A dedicated public IPv4 or IPv6 address resource that can be static or dynamic. Standard SKU is zone-redundant and required for many production workloads (Basic SKU retired September 30, 2025).",
+        "keyDetail": "Standard SKU: ~$0.005/hr (~$3.72/mo) whether attached or not. Default quota 100-250 per region. Supports IPv6.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/public-ip-addresses",
+        "diagram": "graph TD\n  PIP[\"Public IP\\n(SKU: Std)\"] --> VM[\"VM NIC\"]\n  style PIP fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Elastic IP (EIP)",
+        "description": "A static public IPv4 address that can be remapped between instances for failover. Since 2024, AWS charges for all public IPv4 addresses whether in use or idle.",
+        "keyDetail": "~$0.005/hr (~$3.60/mo) per EIP regardless of attachment. Default limit of 5 EIPs per region. No Elastic IP equivalent for IPv6.",
+        "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html",
+        "diagram": "graph TD\n  EIP[\"Elastic IP\\n(Regional)\"] --> ENI[\"ENI\"]\n  style EIP fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "External IP Address",
+        "description": "Static or ephemeral public IP address for VM instances and load balancers. Static IPs are reserved explicitly; ephemeral IPs are auto-assigned at boot and released on stop.",
+        "keyDetail": "In-use: ~$0.004/hr (~$2.88/mo). Unused/reserved: ~$0.01/hr (~$7.20/mo) \u2014 a significant penalty for idle IPs. Default ~8 static IPs per region (increasable via quota request).",
+        "url": "https://cloud.google.com/compute/docs/ip-addresses",
+        "diagram": "graph TD\n  IP[\"External IP\\n(Ephemeral/Static)\"] --> VM[\"VM\"]\n  style IP fill:#EA4335,color:#fff"
+      },
+      "differences": "All three now charge for public IPv4 whether used or not, but GCP charges 2x more for unused/reserved IPs. AWS has no native Elastic IP for IPv6. Azure's Standard SKU is zone-redundant by default, while AWS EIPs are zonal. GCP ephemeral IPs change on every VM restart, which requires automation to update DNS or dependent configs.",
+      "practitionerNote": "The 2024 AWS public IPv4 charging change was significant \u2014 it affected every account with public IPv4 addresses \u2014 $0.005/hr applies to all public IPv4 addresses, whether in-use or idle. GCP's higher idle reservation cost means you should aggressively clean up reserved-but-unattached IPs. Review each provider's current pricing page before estimating public IP costs.",
+      "conceptName": "Public IP Address"
+    },
+    {
+      "id": "network-interface",
+      "category": "fundamentals",
+      "azure": {
+        "name": "Network Interface (NIC)",
+        "description": "A separate ARM resource representing a network connection for a VM. NICs are independent objects that can be pre-created, moved between VMs (when stopped), and configured independently.",
+        "keyDetail": "1-8+ NICs per VM depending on SKU (up to 20 on largest M-series). Each NIC supports 1 primary + up to 249 secondary private IPs.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-network-interface",
+        "diagram": "graph TD\n  NIC[\"NIC\"] --> IP1[\"IP Config 1\"]\n  NIC --> IP2[\"IP Config 2\"]\n  style NIC fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Elastic Network Interface (ENI)",
+        "description": "A virtual network card attached to an EC2 instance. ENIs are independent resources that can be detached and reattached between instances in the same AZ.",
+        "keyDetail": "Up to 24 ENIs per instance (high-end types). Up to 64 IPv4 addresses per ENI on large instances. ENI count varies dramatically by instance type.",
+        "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html",
+        "diagram": "graph TD\n  ENI[\"ENI\\n(Portable)\"] --> VM1[\"Instance A\"]\n  ENI -.-> VM2[\"Instance B\"]\n  style ENI fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Network Interface",
+        "description": "A network connection for a Compute Engine VM. Unlike Azure/AWS, GCP NICs are not independent resources \u2014 they are defined as part of the VM configuration and cannot be detached.",
+        "keyDetail": "NICs per VM varies by machine type (typically 2-8, based on vCPU count). Each NIC supports 1 primary + up to 150 alias IP ranges. NICs cannot be moved between VMs.",
+        "url": "https://cloud.google.com/vpc/docs/multiple-interfaces-concepts",
+        "diagram": "graph TD\n  VM[\"VM\"] --> NIC[\"NIC\\n(Non-portable)\"]\n  style NIC fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure and AWS treat NICs/ENIs as independent, portable resources that can be moved between VMs. GCP NICs are bound to the VM lifecycle \u2014 you cannot detach and reattach them. AWS offers the highest NIC count on large instances (24), Azure varies widely by SKU, and GCP is a flat 8 for most types.",
+      "practitionerNote": "GCP's non-portable NIC model requires different NVA failover patterns \u2014 you need floating IPs or internal load balancers instead of NIC migration. Azure supports up to 249 secondary IPs per NIC, which is relevant for container networking scenarios that assign pod IPs directly to the NIC.",
+      "conceptName": "Network Interface"
+    },
+    {
+      "id": "network-security-group",
+      "category": "fundamentals",
+      "azure": {
+        "name": "Network Security Group (NSG)",
+        "description": "Stateful firewall rules applied at the subnet or NIC level. Supports both allow and deny rules with priority-based evaluation (lower number = higher priority). No separate stateless NACL layer.",
+        "keyDetail": "Supports explicit deny rules. Priority-based evaluation (100-4096). Can be applied to both subnets and NICs simultaneously for layered security.",
+        "diagram": "graph TD\n  A[Allow 100] --> D[Deny 200] --> X[Default Deny]\n  style A fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview"
+      },
+      "aws": {
+        "name": "Security Group",
+        "description": "Stateful firewall rules applied at the instance/ENI level. Only supports allow rules \u2014 there is no explicit deny. All rules are evaluated together (no priority ordering). AWS also has NACLs as a stateless subnet-level layer.",
+        "keyDetail": "Allow-only (no deny rules). Orderless evaluation. Paired with Network ACLs (NACLs) at subnet level which are stateless and support deny.",
+        "diagram": "graph TD\n  A1[Allow] --> A2[Allow] --> X[Implicit Deny]\n  style X fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html"
+      },
+      "gcp": {
+        "name": "VPC Firewall Rules",
+        "description": "Stateful firewall rules applied at the VPC level, targeted by network tags or service accounts. Supports both allow and deny rules with priority-based evaluation, similar to Azure NSGs.",
+        "keyDetail": "Supports deny rules. Priority-based (0-65535, lower = higher). Applied via tags/service accounts \u2014 not directly to subnets or NICs.",
+        "diagram": "graph TD\n  A[Priority 1000] --> B[Priority 2000] --> X[Default Deny]\n  style A fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/firewall/docs/firewalls"
+      },
+      "differences": "Azure NSGs and GCP Firewall Rules both support explicit deny with priority ordering. AWS Security Groups are allow-only with no priority \u2014 you need NACLs for deny rules, which provides a separate stateless filtering layer. GCP's tag-based targeting is more flexible than Azure's subnet/NIC attachment model but requires disciplined tag management.",
+      "practitionerNote": "A key difference when moving from Azure to AWS: you cannot deny specific traffic in a Security Group. You must use NACLs (which are stateless and complex to manage at scale) or a Network Firewall. Coming from AWS to Azure, the absence of NACLs is a common adjustment \u2014 but NSGs support deny rules natively, so Azure does not need a separate stateless filtering layer.",
+      "conceptName": "Network Security Group / Firewall Rules"
+    },
+    {
+      "id": "vnet-vpc-peering",
+      "category": "fundamentals",
+      "azure": {
+        "name": "VNet Peering",
+        "description": "Non-transitive, low-latency connection between two VNets using Azure backbone. Supports cross-region (global) peering and gateway transit to share VPN/ExpressRoute gateways with peered VNets.",
+        "keyDetail": "Up to 500 peerings per VNet (raisable to 1,000 with Azure Virtual Network Manager). Non-transitive. Supports gateway transit. Routes auto-propagate. No overlapping CIDR allowed.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-peering-overview",
+        "diagram": "graph LR\n  V1[\"VNet A\"] -- \"Non-transitive\" --- V2[\"VNet B\"]\n  style V1 fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "VPC Peering",
+        "description": "Non-transitive connection between two VPCs, including cross-region and cross-account. Requires manual route table updates in each VPC to enable traffic flow over the peering.",
+        "keyDetail": "Up to 50 peerings per VPC by default (125 max with quota increase). Non-transitive. Requires manual route updates. No gateway transit equivalent.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/peering/what-is-vpc-peering.html",
+        "diagram": "graph LR\n  V1[\"VPC A\"] -- \"Non-transitive\" --- V2[\"VPC B\"]\n  style V1 fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "VPC Network Peering",
+        "description": "Non-transitive connection between two VPC networks. Because GCP VPCs are global, a single peering connects all regions in both VPCs. Routes are automatically exchanged.",
+        "keyDetail": "Up to 25 peerings per VPC (quota increase available via Cloud Console request). Non-transitive. Automatic route exchange. Lowest peering limit of the three.",
+        "url": "https://cloud.google.com/vpc/docs/vpc-peering",
+        "diagram": "graph LR\n  V1[\"VPC A\\n(Global)\"] -- \"25 peer limit\" --- V2[\"VPC B\"]\n  style V1 fill:#EA4335,color:#fff"
+      },
+      "differences": "All three are non-transitive. Azure has the highest peering limit (500), followed by AWS (125), then GCP (25). Azure auto-propagates routes and offers gateway transit; AWS peering uses explicit route table entries and does not support gateway transit \u2014 Transit Gateway serves this role instead. GCP's global VPC means one peering covers all regions, unlike Azure/AWS where cross-region peering is a separate configuration.",
+      "practitionerNote": "GCP's default 25-peering quota (increasable via support request) is still a practical constraint for large enterprises \u2014 enterprises typically move to Shared VPC or NCC sooner than they would adopt managed WAN solutions on Azure or AWS. Azure's gateway transit is a differentiating feature: spokes to use the hub's ExpressRoute without deploying their own gateway.",
+      "conceptName": "VNet / VPC Peering"
+    },
+    {
+      "id": "private-subnet-no-default-outbound",
+      "category": "fundamentals",
+      "azure": {
+        "name": "Private Subnet (defaultOutboundAccess=false)",
+        "description": "As of March 31, 2026, new Azure VNets/subnets are private by default \u2014 no implicit outbound internet access. You must explicitly configure NAT Gateway, Standard LB outbound rules, public IP, or NVA routing for internet egress.",
+        "keyDetail": "Default outbound access retired for new VNets (March 31, 2026). Existing VNets retain legacy behavior. This was a breaking change that required migration planning for existing workloads.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/default-outbound-access",
+        "diagram": "graph TD\n  Sub[\"Subnet\"] -->|\"No default\\noutbound\"| X[\"Blocked\"]\n  Sub -->|\"Explicit\\nNAT GW\"| Out[\"Internet\"]\n  style Sub fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Private Subnet (default behavior)",
+        "description": "AWS has always distinguished public and private subnets by route table configuration. Private subnets have no default internet route \u2014 you must add a NAT Gateway or NAT instance for outbound access.",
+        "keyDetail": "AWS never had implicit outbound for private subnets \u2014 explicit NAT Gateway or IGW route required from day one.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/configure-subnets.html",
+        "diagram": "graph TD\n  Sub[\"Private\\nSubnet\"] -->|\"No IGW\\nroute\"| X[\"Blocked\"]\n  Sub -->|\"NAT GW\"| Out[\"Internet\"]\n  style Sub fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "VM without External IP",
+        "description": "GCP VMs without an external IP have no outbound internet access unless Cloud NAT is configured. The default VPC includes an internet gateway route, but without an external IP or Cloud NAT, VMs cannot reach the internet.",
+        "keyDetail": "Default VPC has internet route, but VMs need an external IP or Cloud NAT to use it. Private Google Access provides access to Google APIs without external IP.",
+        "url": "https://cloud.google.com/vpc/docs/private-google-access",
+        "diagram": "graph TD\n  VM[\"VM\\n(No Ext IP)\"] -->|\"Cloud NAT\"| Out[\"Internet\"]\n  style VM fill:#EA4335,color:#fff"
+      },
+      "differences": "AWS has always been 'explicit by design' \u2014 private subnets never had default outbound. Azure historically gave all VMs implicit outbound via Microsoft-owned IPs, which was retired for new VNets (September 2025) , now requiring explicit egress configuration. GCP falls in between: the route exists but VMs without external IPs still need Cloud NAT.",
+      "practitionerNote": "Azure's default outbound retirement required migration planning for many teams \u2014 VMs relying on implicit outbound lost internet access after reprovisioning without an explicit egress path. If you're migrating Azure workloads, audit every subnet for explicit egress paths. Engineers familiar with AWS's explicit-egress model noted that Azure's pre-2025 default outbound behaviour was a significant security posture difference.",
+      "conceptName": "Private Subnet (No Default Outbound)"
+    },
+    {
+      "id": "nat-gateway",
+      "category": "fundamentals",
+      "azure": {
+        "name": "NAT Gateway",
+        "description": "Managed SNAT service providing outbound internet connectivity for VMs in a subnet. Standard SKU is zonal; StandardV2 (GA January 2026) is zone-redundant with up to 100 Gbps throughput and dual-stack (IPv4+IPv6) support. Applied at the subnet level with up to 16 public IPs for SNAT port scaling.",
+        "keyDetail": "$0.045/hr + $0.045/GB processed. Up to 16 public IPs (64,512 SNAT ports per IP). Zone-redundant. Subnet-level assignment.",
+        "diagram": "graph LR\n  VM[VMs] --> NAT[\"NAT GW\\nZone-redundant\"] --> IP[\"Up to\\n16 PIPs\"]\n  style NAT fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/nat-gateway/nat-overview"
+      },
+      "aws": {
+        "name": "NAT Gateway",
+        "description": "Managed NAT service providing outbound internet access for instances in private subnets. Supports up to 8 Elastic IPs per NAT Gateway for higher bandwidth and port capacity. Regional NAT Gateway (Nov 2025) eliminates the per-AZ deployment requirement for HA.",
+        "keyDetail": "$0.045/hr + $0.045/GB processed per gateway. 55,000 concurrent connections per gateway. Up to 8 EIPs per NAT Gateway. Up to 100 Gbps throughput. Regional NAT Gateway option available (Nov 2025) removes per-AZ requirement.",
+        "diagram": "graph LR\n  VM[VMs] --> NAT[\"NAT GW\\nMulti-EIP\"] --> IP[\"Up to 8\\nEIPs\"]\n  style NAT fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html"
+      },
+      "gcp": {
+        "name": "Cloud NAT",
+        "description": "Software-defined, distributed NAT service that operates at the regional level across all zones. No single gateway appliance \u2014 it is implemented in the network fabric itself, providing automatic scaling.",
+        "keyDetail": "$0.0014/VM/hr, capped at $0.044/hr for 32+ VMs. Plus $0.045/GiB data processing charge.",
+        "diagram": "graph LR\n  VM[VMs] --> NAT[\"Cloud NAT\\nSoftware-defined\"] --> IP[\"Auto\\nIPs\"]\n  style NAT fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/nat/docs/overview"
+      },
+      "differences": "GCP Cloud NAT is fundamentally different \u2014 it is software-defined in the network fabric with no dedicated gateway instance, providing automatic scaling and regional HA. AWS now offers both zonal and regional NAT Gateway options. The original zonal model requires one per AZ (multiplying cost for HA); the regional option (Nov 2025) simplifies this. Azure NAT Gateway is zone-redundant by default. Pricing is nearly identical across all three at ~$0.045/hr.",
+      "practitionerNote": "AWS NAT Gateway (zonal model) requires one per AZ for HA, so a 3-AZ region costs 3x the base rate. The regional NAT Gateway option (Nov 2025) changes this calculus. Azure and GCP handle this natively. GCP's software-defined approach means there is no dedicated appliance \u2014 Cloud NAT is a configuration resource, not a provisioned instance, and scales automatically. NAT Gateway data processing charges are an often-overlooked cost on all three platforms.",
+      "conceptName": "NAT Gateway"
+    },
+    {
+      "id": "ip-address-management",
+      "category": "fundamentals",
+      "azure": {
+        "name": "AVNM IPAM",
+        "description": "Native IP Address Management within Azure Virtual Network Manager. Provides centralized, hierarchical IP pool management with automatic non-overlapping CIDR allocation across subscriptions and regions.",
+        "keyDetail": "Hierarchical pools up to 7 levels deep. Direct integration with VNet/subnet creation. Visual audit and compliance tracking. GA November 2025.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network-manager/concept-ip-address-management",
+        "diagram": "graph TD\n  IPAM[\"AVNM\\nIPAM\"] --> Pool[\"IP Pool\"]\n  Pool --> VNet[\"VNet\"]\n  style IPAM fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "VPC IPAM",
+        "description": "Built-in enterprise-class IPAM for tracking, planning, and monitoring IP allocation across accounts and regions. Supports hierarchical structure with scopes, pools, and allocations.",
+        "keyDetail": "Hierarchical (IPAM > Scope > Pool > Allocation). Supports BYOIP integration. Multi-account via AWS Organizations. Longest-established of the three (released 2022).",
+        "url": "https://docs.aws.amazon.com/vpc/latest/ipam/what-it-is-ipam.html",
+        "diagram": "graph TD\n  IPAM[\"VPC\\nIPAM\"] --> Pool[\"Pool\"]\n  Pool --> VPC[\"VPC\"]\n  style IPAM fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "No direct equivalent \u2014 closest is Internal Ranges and IP Address Management API",
+        "description": "GCP does not offer a centralized, dedicated IPAM service comparable to Azure AVNM IPAM or AWS VPC IPAM. IP management is done through Internal Range objects, subnet reservations, and the Compute Engine API.",
+        "keyDetail": "No native IPAM dashboard or hierarchical pool management. Relies on API/CLI for IP tracking. Third-party tools (NetBox, Infoblox) commonly used to fill the gap.",
+        "url": "https://cloud.google.com/network-connectivity/docs/network-connectivity-center/how-to/internal-ranges",
+        "diagram": "graph TD\n  Manual[\"Manual\\nPlanning\"] --> VPC[\"VPC\"]\n  style Manual fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure and AWS both offer dedicated, centralized IPAM services with hierarchical pool management and compliance tracking. GCP has no equivalent native IPAM \u2014 you must use APIs, Internal Range objects, or third-party tools. AWS VPC IPAM is the longest-established (2022), Azure AVNM IPAM launched in 2024 and integrates with Azure Virtual Network Manager.",
+      "practitionerNote": "IPAM becomes critical once environments grow beyond 200+ VNets, where overlapping CIDRs can break peering. AWS was first to solve this natively, Azure followed with AVNM IPAM, but GCP provides Internal Range objects and APIs for IP management but does not offer a dedicated IPAM console comparable to the AWS or Azure offerings. If you are multi-cloud, none of the native tools work cross-cloud \u2014 you need a third-party IPAM regardless.",
+      "conceptName": "IP Address Management (IPAM)"
+    },
+    {
+      "id": "bring-your-own-ip",
+      "category": "fundamentals",
+      "azure": {
+        "name": "Custom IP Prefix (BYOIP)",
+        "description": "Bring your own public IP range to Azure. Three-phase process: validate, provision, commission. Supports hierarchical model with global parent prefix and regional child prefixes.",
+        "keyDetail": "IPv4: /21 to /24 (parent), /22 to /26 (child). IPv6: /48 (parent), /64 (child). Limit of 5 custom prefixes per region. No hourly IP billing for BYOIP ranges.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/custom-ip-address-prefix",
+        "diagram": "graph TD\n  BYOIP[\"Custom IP\\nPrefix\"] --> PIP[\"Public IPs\"]\n  style BYOIP fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "BYOIP (Bring Your Own IP)",
+        "description": "Import your own public IP address range into AWS for use with EC2, Global Accelerator, and other services. Requires ROA and RDAP certificate verification with your RIR.",
+        "keyDetail": "Minimum /24. No explicit maximum prefix limit. BYOIP addresses are exempt from AWS public IPv4 surcharge ($0.005/hr saving per IP). Provisioning takes 1-2 weeks.",
+        "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-byoip.html",
+        "diagram": "graph TD\n  BYOIP[\"BYOIP\"] --> EIP[\"Elastic IPs\"]\n  style BYOIP fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "BYOIP (Public Advertised Prefix)",
+        "description": "Import your public IP range into GCP via Public Advertised Prefixes (PAP) and delegate to projects via Public Delegated Prefixes (PDP). Strict requirement that the range must not be announced elsewhere simultaneously.",
+        "keyDetail": "Minimum /24. Provisioning takes 2-4 weeks (longest of the three). No IP charges for BYOIP ranges. Must stop external BGP announcements before GCP will provision.",
+        "url": "https://cloud.google.com/vpc/docs/bring-your-own-ip",
+        "diagram": "graph TD\n  PAP[\"Public Advertised\\nPrefix\"] --> IP[\"External IPs\"]\n  style PAP fill:#EA4335,color:#fff"
+      },
+      "differences": "All three require RIR registration and ROA creation with minimum /24 prefix. Azure supports a hierarchical parent/child model for splitting ranges across regions. GCP has the strictest exclusivity requirement \u2014 you must cease external announcements before provisioning. AWS is the fastest to provision (1-2 weeks) and exempts BYOIP from public IPv4 surcharges.",
+      "practitionerNote": "BYOIP is mainly used for IP reputation preservation (email senders, API providers) and regulatory compliance. GCP's requirement to stop announcing elsewhere before provisioning makes blue-green migration harder than Azure or AWS. Azure's parent/child model is useful for splitting a /21 across multiple regions.",
+      "conceptName": "Bring Your Own IP (BYOIP)"
+    },
+    {
+      "id": "hub-spoke-architecture",
+      "category": "topology",
+      "azure": {
+        "name": "Hub VNet + VNet Peering",
+        "description": "Traditional hub-spoke topology using a central hub VNet with shared services (firewall, gateways) peered to spoke VNets. Gateway transit allows spokes to share the hub's VPN/ExpressRoute gateway.",
+        "keyDetail": "Non-transitive by default \u2014 spoke-to-spoke requires UDR through hub NVA/firewall. Gateway transit reduces cost by sharing a single gateway. Up to 500 peerings per hub. Azure Virtual Network Manager (AVNM) provides a modern managed alternative for hub-spoke topology management.",
+        "diagram": "graph TD\n  H[\"Hub VNet\\n+ Firewall\"] --> S1[Spoke 1]\n  H --> S2[Spoke 2]\n  style H fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/architecture/networking/architecture/hub-spoke"
+      },
+      "aws": {
+        "name": "Transit Gateway (TGW)",
+        "description": "Managed regional hub that connects thousands of VPCs and on-premises networks. Provides transitive routing between all attachments via centralized route tables, replacing the need for individual VPC peerings.",
+        "keyDetail": "Supports 5,000+ attachments. Full transitive routing. Per-attachment route tables for segmentation. $0.05/hr per attachment + $0.02/GB processed.",
+        "diagram": "graph TD\n  T[\"Transit\\nGateway\"] --> S1[VPC 1]\n  T --> S2[VPC 2]\n  style T fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/vpc/latest/tgw/what-is-transit-gateway.html"
+      },
+      "gcp": {
+        "name": "Shared VPC / NCC Hub-and-Spoke",
+        "description": "GCP offers two distinct patterns: Shared VPC shares a single VPC across projects (like a flat network, not a transit hub). Network Connectivity Center (NCC) provides hub-and-spoke transit with spokes connecting VPCs, VPN tunnels, and Cloud Interconnect attachments \u2014 this is the closer equivalent to Azure hub-spoke or AWS TGW.",
+        "keyDetail": "Shared VPC: multi-project shared network \u2014 no transit routing, no firewall insertion point. NCC: true hub-and-spoke transit with BGP route exchange between spokes. NCC hub is global; spokes are regional. Key distinction: Shared VPC is an IAM/project model, NCC is a network topology model.",
+        "diagram": "graph TD\n  H[\"Host\\nProject\"] --> S1[Service 1]\n  H --> S2[Service 2]\n  style H fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/vpc/docs/shared-vpc"
+      },
+      "differences": "Fundamentally different approaches: Azure uses peering (non-transitive, requires NVA for spoke-to-spoke), AWS uses a managed transit hub (transitive, centralized routing), and GCP uses a shared network model (no peering at all \u2014 projects share the same VPC). GCP Shared VPC requires the least configuration but is the most tightly coupled; AWS TGW provides the most granular routing control via per-attachment route tables.",
+      "practitionerNote": "Azure's peering-based hub-spoke is straightforward but increases in operational complexity at scale \u2014 spoke-to-spoke flows typically route through the hub firewall (architecture-dependent). AWS TGW is the most widely adopted managed transit service on AWS but costs add up with per-attachment and per-GB charges. GCP Shared VPC is architecturally simple but means all projects share the same network \u2014 blast radius is the whole VPC.",
+      "conceptName": "Hub-Spoke Architecture"
+    },
+    {
+      "id": "managed-wan",
+      "category": "topology",
+      "azure": {
+        "name": "Azure Virtual WAN",
+        "description": "Globally distributed managed networking hub that aggregates VNets, VPN, ExpressRoute, and SD-WAN connections across Azure's backbone. Automatic route propagation with built-in transit between all connected networks.",
+        "keyDetail": "Global multi-hub architecture. Automatic any-to-any routing. Integrated Azure Firewall. SD-WAN partner integration. Routing Intent (GA May 2023) simplifies inter-hub and internet routing via Azure Firewall or NVA next-hop. Less customisable than DIY hub-spoke but simpler to operate.",
+        "diagram": "graph TD\n  H1[\"VWAN Hub\\nWest EU\"] <--> H2[\"VWAN Hub\\nEast US\"]\n  H1 --> S[Spoke]\n  H2 --> ER[ExpressRoute]\n  style H1 fill:#0078D4,color:#fff\n  style H2 fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-wan/virtual-wan-about"
+      },
+      "aws": {
+        "name": "AWS Cloud WAN / Transit Gateway",
+        "description": "AWS Cloud WAN is the primary managed WAN service, providing a global network dashboard with automated policy-based routing across regions and accounts. Uses Transit Gateways as the underlying routing plane. TGW can also be used standalone for regional hub-and-spoke topologies.",
+        "keyDetail": "Cloud WAN: global policy-based network with automated routing. TGW: regional managed router, $0.05/hr per attachment. TGW peering for cross-region. Cloud WAN abstracts multi-region TGW mesh.",
+        "diagram": "graph TD\n  CW[\"Cloud WAN\\n(Global)\"] --> T1[\"TGW\\nus-east-1\"]\n  CW --> T2[\"TGW\\neu-west-1\"]\n  T1 --> V[VPC]\n  T2 --> DX[Direct Connect]\n  style CW fill:#FF9900,color:#fff\n  style T1 fill:#FF9900,color:#fff\n  style T2 fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/vpc/latest/tgw/what-is-transit-gateway.html"
+      },
+      "gcp": {
+        "name": "Network Connectivity Center (NCC)",
+        "description": "Global managed hub built on Google's premium backbone. Connects VPCs, VPNs, SD-WAN, and Interconnects via a single global hub with automatic routing leveraging Google's Andromeda SDN.",
+        "keyDetail": "Global from day one (no regional peering needed). Leverages Google's premium backbone for lowest latency. Growing SD-WAN partner ecosystem.",
+        "diagram": "graph TD\n  NCC[\"NCC Hub\"] --> S1[\"Spoke\\nus-central1\"]\n  NCC --> S2[\"Spoke\\neurope-west1\"]\n  style NCC fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/overview"
+      },
+      "differences": "Azure VWAN and GCP NCC are both globally managed with automatic routing. AWS TGW is regional and requires explicit inter-region peering for global connectivity. AWS offers the most granular routing control; Azure VWAN integrates routing, firewall, and VPN management in a single resource; GCP NCC leverages the extensive backbone but is the newest of the three, with a growing third-party integration ecosystem.",
+      "practitionerNote": "Azure Virtual WAN is the most prescriptive \u2014 it manages routing for you, which simplifies standard topologies but reduces flexibility for non-standard patterns (asymmetric routing, custom next-hops). AWS TGW provides the most granular control, which requires careful route table design. GCP NCC is the newest and expanding its third-party integrations.",
+      "conceptName": "Managed WAN / Transit Service"
+    },
+    {
+      "id": "user-defined-routes",
+      "category": "topology",
+      "azure": {
+        "name": "User-Defined Routes (UDR)",
+        "description": "Custom routes applied via route tables associated with subnets. Override system routes to direct traffic through NVAs, firewalls, or other next hops. Can disable BGP route propagation per route table.",
+        "keyDetail": "400 routes per route table (up to 1,000 with AVNM UDR management). Applied at subnet level. Can override system routes and disable BGP propagation.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-udr-overview",
+        "diagram": "graph TD\n  UDR[\"UDR\\n(400 limit)\"] --> Sub[\"Subnet\"]\n  style UDR fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Route Tables",
+        "description": "Each subnet is associated with exactly one route table containing static routes. Routes define next hops for destination CIDRs. Default limit of 500 routes per table (1,000 max) since June 2025.",
+        "keyDetail": "500 routes per route table by default (up to 1,000 max). Each subnet gets exactly one route table. No BGP propagation toggle \u2014 routes are static or gateway-propagated. Limits increased June 2025.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html",
+        "diagram": "graph TD\n  RT[\"Route Table\\n(500 limit)\"] --> Sub[\"Subnet\"]\n  style RT fill:#FF9900,color:#fff",
+        "practitionerNote": "Route table limits were significantly increased in June 2025 from 50/100 to 500/1,000. This addresses a previous limitation when comparing AWS to Azure/GCP route capacity."
+      },
+      "gcp": {
+        "name": "Routes",
+        "description": "Routes are global resources within a VPC, not per-subnet. Static routes and policy-based routes can direct traffic to specific next hops. Dynamic routes from Cloud Router are automatically distributed.",
+        "keyDetail": "250 static routes per VPC. 300 dynamic (Cloud Router learned) routes per region per VPC. Routes are global within the VPC \u2014 no per-subnet route tables.",
+        "url": "https://cloud.google.com/vpc/docs/routes",
+        "diagram": "graph TD\n  Route[\"Route\\n(Global)\"] --> VPC[\"VPC Network\"]\n  style Route fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure applies routes per subnet via route tables (400-1000 routes). AWS also uses per-subnet route tables but with a 500 routes per table (raised from 50 in June 2025). GCP routes are VPC-wide and global \u2014 there are no per-subnet route tables. This makes GCP routing simpler but less granular. Azure supports 400 routes per table by default (increasable to 1,000); AWS supports 500 per table.",
+      "practitionerNote": "AWS raised its default route-table limit from 50 to 500 in June 2025, easing constraints for SD-WAN scenarios \u2014 though you may still hit it in very complex environments. Azure's 400 is generous but still matters with large on-premises route tables. GCP's global route model means you cannot have different routing behavior per subnet without using policy-based routes, which are a newer addition to the platform.",
+      "conceptName": "User-Defined Routes / Route Tables"
+    },
+    {
+      "id": "network-manager",
+      "category": "topology",
+      "azure": {
+        "name": "Azure Virtual Network Manager (AVNM)",
+        "description": "Centralized management service for network connectivity, security policies, and routing across VNets at scale. Uses group-based targeting to apply configurations to thousands of VNets across subscriptions and regions.",
+        "keyDetail": "Group-based policy targeting. Security admin rules (higher priority than NSGs). Connected group mesh and hub-spoke topologies. IPAM and UDR management built in.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network-manager/overview",
+        "diagram": "graph TD\n  AVNM[\"AVNM\"] --> Rules[\"Security\\nAdmin Rules\"]\n  AVNM --> Groups[\"Network\\nGroups\"]\n  style AVNM fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Network Manager + Cloud WAN",
+        "description": "Network Manager provides global topology visualization and monitoring. AWS Cloud WAN extends this with a managed global core network and segment-based routing policies, succeeding the Transit Gateway for new global deployments.",
+        "keyDetail": "Global topology view across accounts. Cloud WAN provides policy-based global routing with segments. Integrates with Transit Gateway, VPN, and Direct Connect.",
+        "url": "https://docs.aws.amazon.com/network-manager/latest/cloudwan/what-is-cloudwan.html",
+        "diagram": "graph TD\n  CW[\"Cloud WAN\"] --> NM[\"Network\\nManager\"]\n  NM --> Seg[\"Segments\"]\n  style CW fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Network Connectivity Center (NCC)",
+        "description": "Serves double duty as both the managed WAN hub and the centralized network management plane. Combines connectivity management with topology visualization across VPCs, hybrid connections, and SD-WAN.",
+        "keyDetail": "Single service for both connectivity and management. Global hub-and-spoke with automatic routing. Less separation between management plane and data plane than Azure/AWS.",
+        "url": "https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/overview",
+        "diagram": "graph TD\n  NCC[\"NCC\"] --> Hub[\"Hub\"]\n  Hub --> Spoke[\"Spokes\"]\n  style NCC fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure AVNM focuses on policy-at-scale, offering security admin rules, connected groups, and centralized IPAM. AWS separates monitoring (Network Manager) from connectivity (Cloud WAN/TGW), giving more flexibility. GCP combines management and connectivity in NCC, which has a different feature scope \u2014 governance and compliance controls are managed separately through GCP Organization Policies.",
+      "practitionerNote": "AVNM's security admin rules sit above NSGs in priority, so a central team can enforce deny rules that workload teams cannot override. AWS handles centralized security through SCP and Firewall Manager; GCP uses Organization Policies and Hierarchical Firewall Rules. AWS Cloud WAN is the successor to Transit Gateway for new deployments but many orgs still run TGW.",
+      "conceptName": "Network Manager / Governance"
+    },
+    {
+      "id": "connected-groups-transit",
+      "category": "topology",
+      "azure": {
+        "name": "AVNM Connected Groups",
+        "description": "Create a mesh of directly connected VNets without individual peering connections. VNets in a connected group get full bidirectional connectivity managed centrally by AVNM, with optional hub-spoke or mesh topology.",
+        "keyDetail": "Full mesh without managing individual peerings. Up to 250 VNets per connected group (soft limit, raisable to 1,000 via support request). Spoke-to-spoke direct connectivity. Policy-driven membership.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network-manager/concept-connectivity-configuration",
+        "diagram": "graph TD\n  CG[\"Connected\\nGroup\"] --> V1[\"VNet 1\"]\n  CG --> V2[\"VNet 2\"]\n  CG --> V3[\"VNet 3\"]\n  style CG fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "No direct equivalent \u2014 closest is Transit Gateway with route table associations",
+        "description": "AWS achieves similar outcomes via Transit Gateway route tables and associations. VPCs in the same route domain can communicate transitively. AWS Cloud WAN segments provide policy-based grouping for newer deployments.",
+        "keyDetail": "TGW route tables provide segmentation/grouping. Cloud WAN segments offer policy-based grouping. Requires explicit route table configuration, unlike Azure Connected Groups' policy-driven model.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/tgw/what-is-transit-gateway.html",
+        "diagram": "graph TD\n  TGW[\"TGW\"] --> RT1[\"Route\\nTable 1\"]\n  TGW --> RT2[\"Route\\nTable 2\"]\n  style TGW fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "No direct equivalent \u2014 closest is NCC spoke groups or Shared VPC service projects",
+        "description": "GCP achieves transit connectivity via Shared VPC (all projects in same network) or NCC hub-and-spoke. No concept of dynamically grouping separate VPCs into a mesh without peering or a shared network.",
+        "keyDetail": "Shared VPC (IAM/project model, not mesh connectivity) provides implicit mesh (same network). NCC connects VPC spokes through a hub with spoke groups and auto-accept for VPC-to-VPC connectivity. No concept of dynamically grouping separate VPCs into a mesh without peering or a hub.",
+        "url": "https://cloud.google.com/vpc/docs/shared-vpc",
+        "diagram": "graph TD\n  Host[\"Host\\nProject\"] --> P1[\"Service\\nProject 1\"]\n  Host --> P2[\"Service\\nProject 2\"]\n  style Host fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure AVNM Connected Groups creates direct mesh connectivity between VNets without individual peering, managed by policy \u2014 it creates direct mesh connectivity between VNets without individual peering, managed by policy. AWS requires Transit Gateway route table configuration to achieve similar grouping. GCP relies on Shared VPC (same network) or NCC. Each approach has different operational trade-offs at scale.",
+      "practitionerNote": "Without Connected Groups (or a similar abstraction), meshing 50 VNets in a mesh would require 1,225 individual peerings, but Connected Groups does it with one configuration. The 250 VNet limit per group is sufficient for most enterprise topologies. AWS achieves similar outcomes through TGW route table configuration, which provides more granular control but requires more explicit setup.",
+      "conceptName": "Connected Groups / Transit Connectivity"
+    },
+    {
+      "id": "route-server-dynamic-routing",
+      "category": "topology",
+      "azure": {
+        "name": "Azure Route Server",
+        "description": "Managed BGP route reflector that enables dynamic route exchange between NVAs (firewalls, SD-WAN) and Azure VNet system routes. Eliminates the need for static UDRs when using NVAs, and supports transitive routing between peers. This feature focuses on the dynamic routing capability that Route Server provides to VNets.",
+        "keyDetail": "Requires dedicated /27 subnet. Supports ECMP. Up to 8 BGP peers. Enables NVA-advertised routes to propagate to VNet and peered VNets. Per-VNet deployment.",
+        "diagram": "graph TD\n  NVA[NVA] <-->|BGP| RS[Route Server]\n  RS -->|Injects| RT[VNet Routes]\n  style RS fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/route-server/overview"
+      },
+      "aws": {
+        "name": "VPC Route Server",
+        "description": "Managed BGP router within a VPC (GA April 2025), enabling dynamic route exchange with NVAs. Direct equivalent of Azure Route Server. $0.75/hr. Propagates learned routes to VPC route tables.",
+        "keyDetail": "GA since April 2025 \u2014 direct equivalent to Azure Route Server. $0.75/hr per Route Server. BGP peering with NVAs inside a VPC. Propagates routes to VPC route tables dynamically.",
+        "diagram": "graph TD\n  NVA[Appliance] <-->|BGP| VRS[VPC Route Server]\n  VRS -->|Dynamic| RT[Route Table]\n  style VRS fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/dynamic-routing-route-server.html"
+      },
+      "gcp": {
+        "name": "Cloud Router",
+        "description": "Fully managed BGP router tightly integrated with VPC, Cloud VPN, Interconnect, and NCC. Learns and advertises routes dynamically. Regional deployment with global or regional dynamic routing mode.",
+        "keyDetail": "Fully managed \u2014 no dedicated subnet needed. Supports BFD, MD5 auth, and route filtering policies. Integrated with Interconnect and VPN. Longest-established of the three.",
+        "diagram": "graph TD\n  NVA[NVA] <-->|BGP| CR[Cloud Router]\n  CR -->|Programmatic| RT[VPC Routes]\n  style CR fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/network-connectivity/docs/router/concepts/overview"
+      },
+      "differences": "GCP Cloud Router is the longest-established and tightly integrated with VPN, Interconnect, and NCC \u2014 it handles BGP for VPN, Interconnect, and NVAs in one service. Azure Route Server focuses specifically on NVA-to-VNet BGP integration and is well-established. AWS VPC Route Server is the newest (2025) and provides VPC-native BGP integration, whereas previously Transit Gateway Connect was the standard approach.",
+      "practitionerNote": "Azure Route Server enables dynamic route exchange between SD-WAN appliances and VNet route tables, replacing static UDR management \u2014 without it, you must maintain static UDRs for each route. GCP Cloud Router has done this since its early days and is the mature BGP implementation of the three. AWS VPC Route Server shipped in 2025, providing direct VPC-level BGP peering. Previously, Transit Gateway Connect was the standard approach for NVA BGP integration.",
+      "conceptName": "Route Server / Dynamic Routing"
+    },
+    {
+      "id": "site-to-site-vpn",
+      "category": "hybrid",
+      "azure": {
+        "name": "Azure VPN Gateway (Site-to-Site)",
+        "description": "Managed IPsec/IKE VPN gateway supporting up to 100 S2S tunnels per gateway with SKUs from VpnGw1 to VpnGw5. Zone-redundant AZ SKUs available.",
+        "keyDetail": "Up to 10 Gbps aggregate throughput (VpnGw5AZ). Supports active-active mode, BGP, and static routing. IKEv1/IKEv2. Non-AZ VPN Gateway SKUs deprecated (announced Nov 2025, migration deadline Sep 30, 2026) \u2014 all new deployments should use AZ SKUs (VpnGw1AZ, etc.).",
+        "diagram": "graph LR\n  OnP[On-prem] <-->|IPsec/IKEv2| VGW[\"VPN\\nGateway\"]\n  style VGW fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/vpn-gateway/vpn-gateway-about-vpngateways"
+      },
+      "aws": {
+        "name": "AWS Site-to-Site VPN",
+        "description": "Managed IPsec VPN with two tunnels per connection for built-in HA. Attaches to Virtual Private Gateway (single VPC) or Transit Gateway (multi-VPC).",
+        "keyDetail": "1.25 Gbps per standard tunnel, 5 Gbps with Large Bandwidth Tunnels (TGW and Cloud WAN). Active-active by default. 50 connections per region (soft limit).",
+        "diagram": "graph LR\n  OnP[On-prem] <-->|IPsec| VGW[\"Site-to-Site\\nVPN\"]\n  style VGW fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/vpn/latest/s2svpn/VPC_VPN.html"
+      },
+      "gcp": {
+        "name": "GCP HA VPN (Cloud VPN)",
+        "description": "High-availability VPN with two interfaces per gateway and 99.99% SLA. Classic VPN is deprecated in favour of HA VPN.",
+        "keyDetail": "Up to 3 Gbps per tunnel. Standard 2-tunnel HA gateway gives ~6 Gbps via ECMP. Scale horizontally. BGP-only for HA VPN (no static routes). IKEv1 and IKEv2 (IKEv2 required for IPv6, recommended).",
+        "diagram": "graph LR\n  OnP[On-prem] <-->|IPsec + BGP| VPN[\"HA VPN\\n99.99% SLA\"]\n  style VPN fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/network-connectivity/docs/vpn/concepts/overview"
+      },
+      "differences": "Azure offers the broadest SKU range and the highest single-gateway throughput (10 Gbps). AWS provides automatic dual-tunnel HA but lower per-tunnel bandwidth. GCP mandates BGP for HA VPN, making it the most prescriptive HA model, with a 99.99% SLA out of the box with a 99.99% SLA out of the box.",
+      "practitionerNote": "When connecting clouds together (e.g. Azure-to-AWS VPN), ensure IKE versions and DH groups match on both sides. GCP's BGP-only requirement for HA VPN means you can't use static routes \u2014 plan your ASN allocation early.",
+      "conceptName": "Site-to-Site VPN"
+    },
+    {
+      "id": "point-to-site-vpn",
+      "category": "hybrid",
+      "azure": {
+        "name": "Azure Point-to-Site VPN",
+        "description": "Remote access VPN for individual clients connecting to Azure VNets. Supports OpenVPN, SSTP, and IKEv2 protocols.",
+        "keyDetail": "Authenticates via Entra ID (Azure AD), RADIUS, or certificates. Up to 10,000 P2S connections on VpnGw5. Windows/macOS/Linux clients.",
+        "url": "https://learn.microsoft.com/en-us/azure/vpn-gateway/point-to-site-about",
+        "diagram": "graph LR\n  User[\"User\"] --> GW[\"P2S VPN\\nGateway\"]\n  GW --> VNet[\"VNet\"]\n  style GW fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Client VPN",
+        "description": "Fully managed OpenVPN-based remote access VPN for connecting users to AWS VPCs and on-premises networks.",
+        "keyDetail": "OpenVPN protocol only. Supports Active Directory, SAML 2.0, and mutual certificate auth. Elastically scalable. Split tunnelling supported.",
+        "url": "https://docs.aws.amazon.com/vpn/latest/clientvpn-admin/what-is.html",
+        "diagram": "graph LR\n  User[\"User\"] --> CV[\"Client\\nVPN\"]\n  CV --> VPC[\"VPC\"]\n  style CV fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "No direct P2S equivalent \u2014 closest: Chrome Enterprise Premium / IAP TCP Tunnelling",
+        "description": "GCP has no native network-level P2S VPN service. IAP TCP Tunnelling provides per-application zero-trust access (not full network connectivity). Chrome Enterprise Premium (formerly BeyondCorp Enterprise) provides clientless zero-trust access to web apps. For full network-level P2S, third-party VPN appliances are needed.",
+        "keyDetail": "IAP TCP Tunnelling: single-port TCP forwarding through Google's edge, requires IAM auth per connection. Not a network tunnel \u2014 no IP assignment, no split tunnelling, no routing. Chrome Enterprise Premium: browser-based zero-trust access. Neither provides the full L3 VPN experience of Azure P2S or AWS Client VPN.",
+        "url": "https://cloud.google.com/iap/docs/using-tcp-forwarding",
+        "diagram": "graph LR\n  User[\"User\"] --> IAP[\"IAP TCP\\nTunnel\"]\n  IAP --> VM[\"VM\"]\n  style IAP fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure and AWS offer traditional network-level VPN clients giving full subnet access. GCP takes a fundamentally different zero-trust approach with IAP \u2014 no VPN client, application-level granularity, but not suitable for legacy TCP/UDP protocols that need raw network access. GCP has no direct P2S VPN equivalent.",
+      "practitionerNote": "GCP's IAP approach is architecturally distinct \u2014 using identity-based access rather than network tunnels \u2014 well-suited for modern web workloads, but requires additional configuration for RDP, SSH to arbitrary IPs, or database access. For GCP, consider using IAP tunnels for SSH/RDP and Tailscale/WireGuard for broader network access.",
+      "conceptName": "Point-to-Site / Client VPN"
+    },
+    {
+      "id": "dedicated-circuit-partner",
+      "category": "hybrid",
+      "azure": {
+        "name": "Azure ExpressRoute (via Provider)",
+        "description": "Private Layer 3 connection to Azure via a connectivity provider (telco or exchange). Supports private peering (VNets) and Microsoft peering (M365/Dynamics).",
+        "keyDetail": "50 Mbps to 10 Gbps via providers. Dual redundant circuits for SLA. Metered or unlimited data plans. 12 months to provision in some regions.",
+        "diagram": "graph LR\n  DC[On-prem] --> P[Provider] --> ER[ExpressRoute]\n  style ER fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/expressroute/expressroute-introduction"
+      },
+      "aws": {
+        "name": "AWS Direct Connect (Hosted Connection)",
+        "description": "Private dedicated connection to AWS via an approved partner. Hosted connections offer sub-port bandwidth allocations from partner facilities.",
+        "keyDetail": "50 Mbps to 10 Gbps hosted connections. Private VIF (VPC), Public VIF (AWS public services), Transit VIF (Transit Gateway). Per-GB egress pricing.",
+        "diagram": "graph LR\n  DC[On-prem] --> P[Partner] --> DX[Direct Connect]\n  style DX fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/directconnect/latest/UserGuide/hosted_connection.html"
+      },
+      "gcp": {
+        "name": "GCP Partner Interconnect",
+        "description": "Private connectivity to GCP via an approved service provider. Suitable for locations where Dedicated Interconnect is not available.",
+        "keyDetail": "50 Mbps to 50 Gbps per VLAN attachment. Multiple attachments for redundancy. Discounted egress pricing vs internet. Layer 2 or Layer 3 partner models.",
+        "diagram": "graph LR\n  DC[On-prem] --> P[Partner] --> PI[Partner Interconnect]\n  style PI fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/network-connectivity/docs/interconnect/concepts/partner-overview"
+      },
+      "differences": "Azure offers Microsoft Peering for O365/SaaS traffic alongside private peering on the same circuit. AWS uses distinct VIF types (Private/Public/Transit) for different traffic classes. GCP Partner Interconnect supports the widest per-attachment bandwidth (up to 50 Gbps) and benefits from global VPC routing. All three require redundant circuits for SLA.",
+      "practitionerNote": "Using ExpressRoute for M365 now requires explicit Microsoft approval and is discouraged \u2014 Microsoft now recommends internet-based connectivity for M365. Factor this into long-term circuit planning.",
+      "conceptName": "Dedicated Circuit (Provider Model)"
+    },
+    {
+      "id": "dedicated-circuit-direct",
+      "category": "hybrid",
+      "azure": {
+        "name": "Azure ExpressRoute Direct",
+        "description": "Customer-owned dual 10G or 100G ports directly to Microsoft edge routers at peering locations. Enables multiple ExpressRoute circuits on a single port pair.",
+        "keyDetail": "Dual 10 Gbps or dual 100 Gbps ports. Supports MACsec encryption. Multiple circuits per port pair. ~$40-50k/month for dual 100G (US). 400G port pairs have been announced.",
+        "url": "https://learn.microsoft.com/en-us/azure/expressroute/expressroute-erdirect-about",
+        "diagram": "graph LR\n  DC[\"Colo\"] --> ERD[\"ER Direct\\n(Port Pair)\"]\n  ERD --> MSEE[\"Microsoft\"]\n  style ERD fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Direct Connect (Dedicated Connection)",
+        "description": "Physical cross-connect from customer/colo router directly to AWS equipment at a Direct Connect location.",
+        "keyDetail": "1 Gbps, 10 Gbps, 100 Gbps, or 400 Gbps dedicated ports. Link Aggregation Groups (LAGs) for higher throughput. MACsec supported on select locations.",
+        "url": "https://docs.aws.amazon.com/directconnect/latest/UserGuide/dedicated_connection.html",
+        "diagram": "graph LR\n  DC[\"Colo\"] --> DX[\"Dedicated\\nConnection\"]\n  DX --> AWS[\"AWS\"]\n  DX -.- Speeds[\"1/10/100/400G\"]\n  style DX fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "GCP Dedicated Interconnect",
+        "description": "Physical connection from customer router to Google edge at a colocation facility. Highest bandwidth and lowest latency option. Now available at 10G, 100G, and 400G.",
+        "keyDetail": "10G, 100G, or 400G per link. Up to 8\u00d7400G (3.2 Tbps) per location. MACsec supported. Contact Google sales for port pricing.",
+        "url": "https://cloud.google.com/network-connectivity/docs/interconnect/concepts/dedicated-overview",
+        "diagram": "graph LR\n  DC[\"Colo\"] --> DI[\"Dedicated\\nInterconnect\"]\n  DI --> GCP[\"Google\"]\n  style DI fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure ExpressRoute Direct is the only service that allowing multiple logical circuits over a single physical port pair, useful for segregating production/dev or different business units. AWS offers 1G dedicated ports (Azure/GCP minimum is 10G). GCP supports the highest aggregate bandwidth per location at 800 Gbps via LAG. All three support MACsec.",
+      "practitionerNote": "ExpressRoute Direct's multi-circuit-per-port model is well-suited for managed service providers or enterprises needing traffic isolation without separate physical cross-connects. AWS's 1G dedicated option provides a lower bandwidth tier that Azure and GCP do not offer.",
+      "conceptName": "Dedicated Circuit (Direct / Dedicated)"
+    },
+    {
+      "id": "circuit-encryption-macsec",
+      "category": "hybrid",
+      "azure": {
+        "name": "Azure ExpressRoute Direct MACsec",
+        "description": "IEEE 802.1AE Layer 2 encryption on ExpressRoute Direct ports between customer and Microsoft edge routers.",
+        "keyDetail": "Supports GCM-AES-128, GCM-AES-256, GCM-AES-XPN-128, GCM-AES-XPN-256",
+        "url": "https://learn.microsoft.com/en-us/azure/expressroute/expressroute-about-encryption",
+        "diagram": "graph LR\n  ERD[\"ER Direct\"] -->|\"MACsec\"| MSEE[\"MSEE\"]\n  style ERD fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Direct Connect MACsec",
+        "description": "MACsec encryption on Direct Connect connections at supported locations. Available on Dedicated Connections and partner-delivered connections. Supports 1/10/100/400 Gbps ports. Ciphers include GCM-AES-256 and GCM-AES-XPN-256.",
+        "keyDetail": "GCM-AES-256 and GCM-AES-XPN-256 ciphers. Static CAK mode only. Available on 10/100/400 Gbps Dedicated Connections and partner connections. Not all locations support MACsec.",
+        "url": "https://docs.aws.amazon.com/directconnect/latest/UserGuide/MACsec.html",
+        "diagram": "graph LR\n  DX[\"DX Port\"] -->|\"MACsec\"| AWS[\"AWS Router\"]\n  style DX fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "GCP Cloud Interconnect MACsec",
+        "description": "MACsec encryption on both Dedicated and Partner Interconnect at 10, 100, and 400 Gbps speeds.",
+        "keyDetail": "GCM-AES-256 cipher. No additional cost for MACsec. Supported on Dedicated and Partner Interconnect at 10G, 100G, and 400G. 10G MACsec requires account team engagement. Keys provisioned via Cloud Console.",
+        "url": "https://cloud.google.com/network-connectivity/docs/interconnect/concepts/macsec-overview",
+        "diagram": "graph LR\n  IC[\"Interconnect\"] -->|\"MACsec\"| GCP[\"Google Router\"]\n  style IC fill:#EA4335,color:#fff"
+      },
+      "differences": "GCP leads here with MACsec on both Dedicated and Partner Interconnect at no extra cost, plus 400 Gbps support and AES-256. AWS also uses AES-256 but only on Dedicated connections at select locations. Azure supports GCM-AES-128 and GCM-AES-256 on Direct ports only. All three support AES-256. None encrypt traffic within their backbone \u2014 MACsec is last-mile only.",
+      "practitionerNote": "Verify Azure's current MACsec cipher support in documentation, as capabilities have expanded. For MACsec on partner circuits (not just direct), GCP remains the only option. If you need wire-speed encryption on provider circuits (not just direct), GCP is the only option. For end-to-end encryption across the cloud backbone, layer IPsec/TLS on top regardless of provider.",
+      "conceptName": "Circuit Encryption (MACsec)"
+    },
+    {
+      "id": "global-circuit-reach",
+      "category": "hybrid",
+      "azure": {
+        "name": "Azure ExpressRoute Global Reach",
+        "description": "Enables on-premises sites connected via separate ExpressRoute circuits in different regions to communicate directly over the Microsoft backbone, bypassing the public internet.",
+        "keyDetail": "Site-to-site traffic hairpins through Microsoft edge \u2014 no Azure VNet needed in the path. Available in most public regions. ExpressRoute Premium add-on required only when connecting circuits across different geopolitical regions; same-region Global Reach works with Standard SKU.",
+        "url": "https://learn.microsoft.com/en-us/azure/expressroute/expressroute-global-reach",
+        "diagram": "graph LR\n  Site1[\"Site 1\"] --> GR[\"Global\\nReach\"] --> Site2[\"Site 2\"]\n  style GR fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Direct Connect Gateway",
+        "description": "Allows a single Direct Connect circuit to reach VPCs in multiple AWS regions. Not a direct equivalent to Global Reach \u2014 it routes to AWS VPCs, not between on-prem sites.",
+        "keyDetail": "Connect VPCs across regions via one DX circuit. Does NOT enable site-to-site transit between on-prem locations over AWS backbone. Requires Transit Gateway for inter-region traffic.",
+        "url": "https://docs.aws.amazon.com/directconnect/latest/UserGuide/direct-connect-gateways-intro.html",
+        "diagram": "graph TD\n  DXGW[\"DX\\nGateway\"] --> R1[\"Region 1\"]\n  DXGW --> R2[\"Region 2\"]\n  style DXGW fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "GCP Global VPC + Cloud Interconnect (Global Routing)",
+        "description": "GCP's global VPC model means a single Interconnect attachment can reach resources in any region. No separate 'Global Reach' product needed \u2014 it's inherent in VPC design.",
+        "keyDetail": "Enable 'Global Routing' on VPC to advertise all subnets across regions. Single Interconnect serves all regions. No equivalent of Azure's site-to-site hairpin feature.",
+        "url": "https://cloud.google.com/network-connectivity/docs/interconnect/concepts/overview",
+        "diagram": "graph TD\n  VPC[\"Global VPC\"] --> R1[\"Region 1\"]\n  VPC --> R2[\"Region 2\"]\n  style VPC fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure Global Reach's the only service that directly connects two on-premises locations via the cloud backbone without transiting a VNet. AWS Direct Connect Gateway routes to VPCs, not between on-prem sites. GCP's global VPC provides cross-region reach natively but also doesn't offer site-to-site transit. ",
+      "practitionerNote": "Global Reach addresses a specific use case for enterprises replacing MPLS between branch offices. AWS and GCP require NVA or SD-WAN overlays to replicate this \u2014 you'd need an NVA or SD-WAN overlay to achieve similar site-to-site transit on those platforms.",
+      "conceptName": "Global Circuit Reach / Cross-Region Transit"
+    },
+    {
+      "id": "route-exchange-appliance",
+      "category": "hybrid",
+      "azure": {
+        "name": "Azure Route Server",
+        "description": "Managed BGP route exchange service enabling NVAs (firewalls, SD-WAN routers) to dynamically exchange routes with Azure VNet system routes and gateways. This feature focuses on Route Server as a route exchange platform between NVAs and Azure networking (ExpressRoute, VPN gateways).",
+        "keyDetail": "BGP peering with up to 8 NVAs. Propagates routes between NVAs, ExpressRoute, and VPN gateways. Enables transitive routing. Requires /27 subnet. $0.45/hr.",
+        "url": "https://learn.microsoft.com/en-us/azure/route-server/overview",
+        "diagram": "graph TD\n  RS[\"Route\\nServer\"] -->|\"BGP\"| NVA[\"NVA\"]\n  RS --> VNet[\"VNet Routes\"]\n  style RS fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Transit Gateway (+ Connect)",
+        "description": "No direct equivalent to Route Server. Transit Gateway serves as a central routing hub. TGW Connect provides GRE+BGP attachments for SD-WAN/NVA integration.",
+        "keyDetail": "TGW Connect enables BGP peering with in-VPC appliances via GRE tunnels. More complex than Azure Route Server but more feature-rich with per-attachment route tables.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/tgw/tgw-connect.html",
+        "diagram": "graph TD\n  TGW[\"TGW\\nConnect\"] -->|\"GRE+BGP\"| App[\"Appliance\"]\n  style TGW fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "GCP Cloud Router",
+        "description": "Managed BGP service that dynamically exchanges routes between VPC networks and on-premises/partner networks via VPN or Interconnect.",
+        "keyDetail": "Supports 16-bit and 32-bit ASNs. Dynamic route advertisement \u2014 subnets auto-propagated. Regional by default but serves global VPC. Advanced route policies and BFD support.",
+        "url": "https://cloud.google.com/network-connectivity/docs/router/concepts/overview",
+        "diagram": "graph TD\n  CR[\"Cloud\\nRouter\"] -->|\"BGP\"| NVA[\"NVA\"]\n  style CR fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure Route Server is purpose-built for in-cloud NVA BGP peering \u2014 a unique service with no exact AWS/GCP parallel. AWS requires Transit Gateway Connect (GRE+BGP) for similar NVA integration, which is more powerful but complex. GCP Cloud Router is edge-focused (VPN/Interconnect to VPC) and less suited for in-cloud NVA peering.",
+      "practitionerNote": "Azure Route Server is enables dynamic injection of third-party routes into Azure VNet route tables via BGP. On AWS, TGW Connect requires additional GRE tunnel configuration alongside BGP. On GCP, the global VPC model reduces the need for in-cloud route exchange, but NVA scenarios require manual UDR management.",
+      "conceptName": "Route Exchange / BGP Appliance"
+    },
+    {
+      "id": "vpn-over-dedicated-circuit",
+      "category": "hybrid",
+      "azure": {
+        "name": "Azure IPsec over ExpressRoute",
+        "description": "Run an IPsec VPN tunnel over ExpressRoute for double encryption. Supported over both private peering (most common modern pattern) and Microsoft peering. The VPN tunnel uses ExpressRoute as the transport instead of the public internet.",
+        "keyDetail": "Supported on both ExpressRoute private peering and Microsoft peering. VPN Gateway and ExpressRoute Gateway coexist in the same VNet. Throughput limited by VPN Gateway SKU, not the circuit.",
+        "url": "https://learn.microsoft.com/en-us/azure/vpn-gateway/site-to-site-vpn-private-peering",
+        "diagram": "graph LR\n  Site[\"On-prem\"] -->|\"IPsec\\nover ER\"| GW[\"VPN GW\"]\n  style GW fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Site-to-Site VPN over Direct Connect",
+        "description": "Run an IPsec VPN tunnel over a Direct Connect connection for double encryption. The modern approach uses Private IP VPN over a Transit VIF with Transit Gateway, keeping all traffic on private addressing.",
+        "keyDetail": "Modern pattern: Private IP VPN over Transit VIF (recommended). Legacy pattern used Public VIF \u2014 no longer required. Throughput limited by VPN tunnel limits (up to 1.25 Gbps per tunnel). Requires Transit Gateway with Direct Connect Gateway.",
+        "url": "https://docs.aws.amazon.com/vpn/latest/s2svpn/private-ip-dx.html",
+        "diagram": "graph LR\n  Site[\"On-prem\"] -->|\"VPN over\\nDX Transit VIF\"| TGW[\"Transit GW\"]\n  style TGW fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "GCP HA VPN over Cloud Interconnect",
+        "description": "Deploy HA VPN gateways that use Interconnect VLAN attachments as the transport layer instead of public internet, combining private transport with IPsec encryption.",
+        "keyDetail": "Supported on both Dedicated and Partner Interconnect. Provides 99.99% SLA when properly configured. BGP required. Throughput scales with number of tunnels.",
+        "url": "https://cloud.google.com/network-connectivity/docs/interconnect/concepts/ha-vpn-interconnect",
+        "diagram": "graph LR\n  Site[\"On-prem\"] -->|\"HA VPN over\\nInterconnect\"| GW[\"VPN GW\"]\n  style GW fill:#EA4335,color:#fff"
+      },
+      "differences": "All three support VPN-over-private-circuit for compliance-driven double encryption. Azure uses private peering as transport (simplest model). AWS requires a Transit VIF (Private IP VPN) for the VPN underlay, which adds complexity. GCP's HA VPN over Interconnect is the most modern implementation with native HA and no SLA compromise.",
+      "practitionerNote": "This pattern is mainly for regulatory compliance (e.g. government, finance) where private transport alone isn't sufficient. The VPN throughput becomes the bottleneck \u2014 not the circuit. On AWS, the VPN-over-Direct Connect architecture has evolved \u2014 verify whether your design uses the older Public VIF approach or the newer Private IP VPN via Transit VIF that is a common point of confusion.",
+      "conceptName": "VPN Over Dedicated Circuit"
+    },
+    {
+      "id": "gateway-sku-tiers",
+      "category": "hybrid",
+      "azure": {
+        "name": "Azure ExpressRoute Gateway SKUs",
+        "description": "ErGw1AZ, ErGw2AZ, ErGw3AZ tiers plus the newer ErGwScale (GA) for ExpressRoute. VPN Gateway uses separate VpnGw1-5 SKUs.",
+        "keyDetail": "ErGwScale (GA): autoscaling ExpressRoute gateway with FastPath support, zone redundancy, and up to 40 Gbps throughput. ErGw1AZ/2AZ/3AZ: fixed-tier legacy SKUs (1/2/10 Gbps). VPN Gateway SKUs: VpnGw1-5(AZ), 650 Mbps to 10 Gbps aggregate VPN throughput.",
+        "url": "https://learn.microsoft.com/en-us/azure/expressroute/expressroute-about-virtual-network-gateways",
+        "diagram": "graph TD\n  SKU[\"ErGw SKUs\"] --> S1[\"Standard\"]\n  SKU --> S2[\"ErGwScale\"]\n  style SKU fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Direct Connect Port Speeds",
+        "description": "No gateway SKU concept \u2014 bandwidth is determined by the physical port (1G, 10G, 100G, 400G) and VIF allocation. VPN throughput is per-tunnel.",
+        "keyDetail": "Dedicated ports: 1/10/100/400 Gbps. Hosted: 50 Mbps\u201310 Gbps. VPN tunnels: 1.25 Gbps standard, 5 Gbps large bandwidth. No gateway VM bottleneck for DX.",
+        "url": "https://docs.aws.amazon.com/directconnect/latest/UserGuide/connection_options.html",
+        "diagram": "graph TD\n  Port[\"DX Port\"] --> S1[\"1 Gbps\"]\n  Port --> S2[\"10/100 Gbps\"]\n  Port --> S3[\"400 Gbps\"]\n  style Port fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "GCP Interconnect Port Speeds",
+        "description": "No gateway SKU concept \u2014 Interconnect bandwidth scales with physical ports and VLAN attachments. Cloud Router handles routing at no additional bandwidth constraint.",
+        "keyDetail": "Dedicated: 10G, 100G, or 400G per link, up to 8\u00d7400G (3.2 Tbps). Partner: 50 Mbps\u201350 Gbps. VPN: 3 Gbps per tunnel, 12 Gbps per HA gateway.",
+        "url": "https://cloud.google.com/network-connectivity/docs/interconnect/pricing",
+        "diagram": "graph TD\n  IC[\"Interconnect\"] --> S1[\"10 Gbps\"]\n  IC --> S2[\"100 Gbps\"]\n  style IC fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure is the only service that routes traffic through a gateway VM that caps throughput \u2014 all ErGw*AZ SKUs cap at 10 Gbps regardless of circuit size. AWS and GCP have no equivalent gateway bottleneck; throughput scales with the physical port. This means a 100G ExpressRoute Direct circuit still flows through a 10 Gbps gateway (FastPath bypasses this for some traffic). AWS and GCP do not have an equivalent gateway-based throughput constraint.",
+      "practitionerNote": "The 10 Gbps ErGw gateway cap is a throughput constraint to account for to account for when sizing Azure deployments. FastPath helps by bypassing the gateway for data-plane traffic, but control-plane operations still transit it. ErGwScale is now GA (November 2025) and addresses this with up to 40 Gbps and autoscaling. When sizing, remember: circuit bandwidth \u2260 gateway throughput in Azure.",
+      "conceptName": "Gateway SKU Tiers / Speeds"
+    },
+    {
+      "id": "cloud-native-firewall",
+      "category": "security",
+      "azure": {
+        "name": "Azure Firewall",
+        "description": "Managed, cloud-native network firewall with built-in HA, unrestricted scalability, and FQDN filtering. Available in Standard, Premium (IDPS, TLS inspection), and Basic SKUs.",
+        "keyDetail": "Basic: $0.395/hr, Standard: $1.25/hr (~$0.016/GB data processing), Premium: $1.75/hr (~$0.016/GB data processing). All SKUs incur additional per-GB charges for data processed.",
+        "diagram": "graph TD\n  FW[\"Azure Firewall\\nL3-L7 + IDPS\"] --> P[\"Premium:\\nTLS Inspect\"]\n  style FW fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/firewall/overview"
+      },
+      "aws": {
+        "name": "AWS Network Firewall",
+        "description": "Managed stateful and stateless network firewall service for VPCs. Uses Suricata-compatible rule engine for L3-L7 inspection including IDS/IPS.",
+        "keyDetail": "Deploys per-AZ endpoints within VPCs. Suricata rule engine allows custom IDS/IPS signatures. ~$0.395/hr per endpoint + $0.065/GB processed. Integrates with AWS Firewall Manager.",
+        "diagram": "graph TD\n  FW[\"Network Firewall\\nSuricata Engine\"] --> T[\"TLS +\\nCustom Rules\"]\n  style FW fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/network-firewall/latest/developerguide/what-is-aws-network-firewall.html"
+      },
+      "gcp": {
+        "name": "Cloud Next Generation Firewall (Cloud NGFW)",
+        "description": "Distributed, cloud-native firewall with three tiers: Essentials (free L3/L4 rules), Standard (FQDN filtering, geo-location filtering, threat intelligence), and Enterprise (L7 IDPS/URL filtering powered by Palo Alto Networks).",
+        "keyDetail": "$0.0193/GiB + $1.75/hr per firewall endpoint (Enterprise)",
+        "diagram": "graph TD\n  FW[\"Cloud NGFW\\nPalo Alto\"] --> E[\"Enterprise:\\nL7 + TLS\"]\n  style FW fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/firewall/docs/about-firewalls"
+      },
+      "differences": "Azure Firewall is a dedicated VNet resource with a private IP; AWS Network Firewall uses per-AZ endpoints within VPCs; GCP Cloud NGFW is distributed across the VPC fabric with no discrete resource to deploy. GCP's Enterprise tier uniquely leverages Palo Alto Networks technology natively. All three scored poorly in CyberRatings.org 2025 independent intrusion testing.",
+      "practitionerNote": "All three native firewalls provide adequate capability for network segmentation and compliance, but for advanced threat prevention (IDS/IPS), many enterprises still deploy third-party NVAs (Palo Alto, Fortinet). Evaluate whether the native IDPS signatures actually cover your threat model.",
+      "conceptName": "Cloud-Native Firewall"
+    },
+    {
+      "id": "ddos-protection",
+      "category": "security",
+      "azure": {
+        "name": "Azure DDoS Protection",
+        "description": "Three tiers: Infrastructure Protection (free, automatic), IP Protection ($199/IP/month), and Network Protection ($2,944/month for 100 IPs with DDoS Response Team and cost protection).",
+        "keyDetail": "DDoS Network Protection: ~$2,944/month covers up to 100 public IPs. Includes DDoS Rapid Response team, attack analytics, and cost guarantee for scaling during attacks.",
+        "url": "https://learn.microsoft.com/en-us/azure/ddos-protection/ddos-protection-overview",
+        "diagram": "graph TD\n  DDoS[\"DDoS\\nProtection\"] --> VNet[\"VNet\"]\n  VNet --> PIP[\"Public IPs\"]\n  style DDoS fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Shield",
+        "description": "Two tiers: Shield Standard (free, automatic L3/L4 protection for all AWS resources) and Shield Advanced ($3,000/month per organization with L7 protection, DRT access, cost protection).",
+        "keyDetail": "Shield Advanced at $3,000/month per organization (not per account) includes 24/7 DDoS Response Team, real-time metrics, WAF integration, and financial cost protection for DDoS-induced scaling. Covers CloudFront, Route 53, ALB, ELB.",
+        "url": "https://docs.aws.amazon.com/waf/latest/developerguide/ddos-overview.html",
+        "diagram": "graph TD\n  Shield[\"Shield\\nAdvanced\"] --> Res[\"ELB / CF /\\nRoute 53\"]\n  style Shield fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Google Cloud Armor",
+        "description": "Always-on infrastructure DDoS protection for resources behind external load balancers. Cloud Armor Enterprise adds advanced DDoS detection, adaptive protection with ML, and managed WAF rules.",
+        "keyDetail": "Standard DDoS protection is free for external LBs. Cloud Armor Enterprise adds ML-based adaptive protection, named IP lists, and threat intelligence. Leverages Google's massive backbone for absorption.",
+        "url": "https://cloud.google.com/armor/docs/cloud-armor-overview",
+        "diagram": "graph TD\n  Armor[\"Cloud\\nArmor\"] --> LB[\"Load\\nBalancer\"]\n  style Armor fill:#EA4335,color:#fff"
+      },
+      "differences": "AWS Shield Advanced and Azure DDoS Protection both offer dedicated response teams and financial cost guarantees \u2014 GCP Cloud Armor does not. GCP's DDoS protection is tightly coupled with Cloud Armor WAF (same product), while Azure and AWS separate DDoS and WAF into distinct services. All three absorb attacks at the network edge using global backbone capacity.",
+      "practitionerNote": "The cost protection guarantee in AWS Shield Advanced and Azure DDoS Protection is a key differentiator \u2014 it reimburses you for autoscaling costs during an attack. GCP Cloud Armor does not include a comparable cost protection guarantee. For most workloads, the free tiers on all three clouds handle common volumetric attacks fine.",
+      "conceptName": "DDoS Protection"
+    },
+    {
+      "id": "web-application-firewall",
+      "category": "security",
+      "azure": {
+        "name": "Azure WAF",
+        "description": "Available on Azure Application Gateway (regional) and Azure Front Door (global). Supports OWASP CRS managed rulesets, custom rules, bot protection, and rate limiting.",
+        "keyDetail": "AppGW WAFv2: $0.443/hr + capacity units. Front Door: bundled in tier price. Classic: $5/policy + $1/rule + $0.60/M requests.",
+        "url": "https://learn.microsoft.com/en-us/azure/web-application-firewall/overview",
+        "diagram": "graph TD\n  WAF[\"WAF Policy\"] --> FD[\"Front Door\"]\n  WAF --> AGW[\"App GW\"]\n  style WAF fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS WAF",
+        "description": "Sits in front of CloudFront, ALB, API Gateway, and AppSync. Uses Web ACLs with managed rule groups (AWS + marketplace), custom rules, and advanced bot control.",
+        "keyDetail": "Pay per Web ACL ($5/month), per rule ($1/month), and per million requests ($0.60). Advanced Bot Control available. Marketplace rule groups from F5, Fortinet, etc. Deeply integrated with Shield Advanced.",
+        "url": "https://docs.aws.amazon.com/waf/latest/developerguide/waf-chapter.html",
+        "diagram": "graph TD\n  WAF[\"AWS WAF\"] --> ALB[\"ALB\"]\n  WAF --> CF[\"CloudFront\"]\n  style WAF fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Google Cloud Armor (WAF)",
+        "description": "Deployed at the edge in front of HTTP(S) Load Balancers. Provides preconfigured OWASP CRS rules, custom rules, rate limiting, and adaptive protection with ML-based anomaly detection.",
+        "keyDetail": "WAF and DDoS are combined in a single Cloud Armor product. Preconfigured rules for OWASP Top 10. Enterprise tier adds adaptive protection using ML to auto-detect L7 attacks. Per-policy + per-rule pricing.",
+        "url": "https://cloud.google.com/armor/docs/cloud-armor-overview",
+        "diagram": "graph TD\n  Armor[\"Cloud Armor\\nWAF\"] --> LB[\"HTTPS LB\"]\n  style Armor fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure deploys WAF on two separate products (Application Gateway for regional, Front Door for global edge). AWS WAF has the richest marketplace of third-party managed rule groups. GCP Cloud Armor uniquely combines WAF + DDoS in one product with ML-powered adaptive protection. All three support OWASP CRS-based rulesets.",
+      "practitionerNote": "GCP's adaptive protection (ML-based) is differentiated \u2014 it detects anomalous L7 traffic patterns automatically. AWS has the largest third-party rule ecosystem via its marketplace. Azure's dual deployment model (AppGW vs Front Door) requires careful selection \u2014 generally prefer Front Door WAF for global apps.",
+      "conceptName": "Web Application Firewall (WAF)"
+    },
+    {
+      "id": "secure-remote-access",
+      "category": "security",
+      "azure": {
+        "name": "Azure Bastion",
+        "description": "Managed jump host providing browser-based RDP/SSH to Azure VMs over TLS. VMs require no public IP, no agent, and no open inbound ports. Available in Developer (free, limited), Basic, Standard, and Premium SKUs.",
+        "keyDetail": "Developer SKU: free, limited features. Standard: ~$0.29/hr, adds native client/CLI and IP-based connections. Premium: adds session recording, private-only access, and Shareable Links. Requires deployment per VNet.",
+        "url": "https://learn.microsoft.com/en-us/azure/bastion/bastion-overview",
+        "diagram": "graph TD\n  B[\"Azure Bastion\\nManaged PaaS\"] --> VM[\"VM\\nNo Public IP\"]\n  style B fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Systems Manager Session Manager",
+        "description": "Secure shell/RDP access via the SSM Agent installed on EC2 instances (preinstalled on Amazon Linux 2/2023 and Windows Server AMIs, but it is a dependency). No SSH keys or open inbound ports required. Uses IAM for authentication.",
+        "keyDetail": "No additional cost beyond SSM agent. IAM-based access control with no SSH key management needed. Session logging/recording to S3/CloudWatch. Supports port forwarding and hybrid (on-premises) via SSM agent.",
+        "url": "https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html",
+        "diagram": "graph TD\n  SSM[\"SSM Session\\nManager\"] --> EC2[\"EC2\\nAgent-based\"]\n  style SSM fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "IAP TCP Tunneling",
+        "description": "Identity-Aware Proxy tunnels TCP traffic (SSH, RDP, custom ports) to GCP VMs using IAM authentication. No public IPs or open ports needed.",
+        "keyDetail": "Free to use. Access via gcloud CLI with local port forwarding. Supports OS Login (no SSH key management). Web-based SSH also available in GCP Console. Context-aware access policies available.",
+        "url": "https://cloud.google.com/iap/docs/using-tcp-forwarding",
+        "diagram": "graph TD\n  IAP[\"IAP TCP\\nTunnel\"] --> VM[\"VM\\nProxy-based\"]\n  style IAP fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure Bastion is a deployed PaaS resource (costs money per hour, per VNet); AWS SSM and GCP IAP are lightweight, software-defined approaches with no dedicated infrastructure. AWS SSM uniquely includes automation/patching capabilities alongside access. GCP IAP uniquely supports arbitrary TCP port forwarding, making it useful for databases and custom services, not just SSH/RDP.",
+      "practitionerNote": "Azure Bastion's Developer SKU is free (single-connection, dev/test only). Basic (~$0.19/hr) is browser-only; Standard (~$0.29/hr) adds native client support. AWS SSM and GCP IAP remain cheaper for production use \u2014 no deployed resource, no per-hour cost. AWS SSM and GCP IAP are architecturally distinct \u2014 using a zero-trust, identity-based model rather than a network-level bastion (no deployed resource, no per-hour cost). If you're Azure-only, consider alternatives like SSH over Private Endpoint or Entra ID-based SSH.",
+      "conceptName": "Secure Remote Access / Bastion"
+    },
+    {
+      "id": "firewall-policy-management",
+      "category": "security",
+      "azure": {
+        "name": "Azure Firewall Manager",
+        "description": "Central management plane for deploying and configuring Azure Firewall policies across multiple VNets, regions, and subscriptions. Supports hierarchical policies (global + local).",
+        "keyDetail": "Manages both VWAN secured hubs and standard hub VNets. Supports partner SECaaS integration (Zscaler, Check Point, iBoss). Hierarchical policies allow global base + DevOps-owned local policies.",
+        "url": "https://learn.microsoft.com/en-us/azure/firewall-manager/overview",
+        "diagram": "graph TD\n  FM[\"Firewall\\nManager\"] --> P[\"Central\\nPolicy\"]\n  style FM fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Firewall Manager",
+        "description": "Centrally manages firewall rules across all accounts in an AWS Organization. Manages AWS WAF, Shield Advanced, Security Groups, Network Firewall, and Route 53 DNS Firewall policies.",
+        "keyDetail": "Auto-applies policies to new accounts/resources for continuous compliance. Requires AWS Organizations. Covers WAF + Shield + SGs + Network Firewall + DNS Firewall \u2014 broadest multi-service scope of the three.",
+        "url": "https://docs.aws.amazon.com/firewall-manager/",
+        "diagram": "graph TD\n  FM[\"Firewall\\nManager\"] --> R[\"SGs + NACLs\\n+ WAF + NFW\"]\n  style FM fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Hierarchical Firewall Policies",
+        "description": "Firewall policies applied at organization, folder, and project levels. Rules cascade down the hierarchy, providing centralized control with project-level override capability.",
+        "keyDetail": "Uses Secure Tags (recommended), network tags, and service accounts for fine-grained rule targeting. Policies span all projects/folders within an org. Built into the GCP fabric \u2014 no separate management product to deploy.",
+        "url": "https://cloud.google.com/firewall/docs/firewall-policies",
+        "diagram": "graph TD\n  ORG[\"Org Policy\"] --> F[\"Folder\"] --> P[\"Project\\nInherits\"]\n  style ORG fill:#EA4335,color:#fff"
+      },
+      "differences": "AWS Firewall Manager has the broadest scope \u2014 it manages WAF, Shield, Security Groups, Network Firewall, and DNS Firewall from one place. Azure Firewall Manager is focused specifically on Azure Firewall policy hierarchy. GCP's approach is the tightly integrated with the resource hierarchy \u2014 hierarchical policies are a native part of the resource hierarchy (org \u2192 folder \u2192 project), not a separate management tool.",
+      "practitionerNote": "GCP's hierarchical approach is the built into the resource hierarchy \u2014 security teams set org-level rules that project owners can't override (unless explicitly delegated). Azure's model is similar but a separate management layer via Firewall Manager rather than baked into the resource hierarchy. AWS's strength is breadth \u2014 one tool for all security services.",
+      "conceptName": "Firewall Policy Management"
+    },
+    {
+      "id": "network-traffic-inspection",
+      "category": "security",
+      "azure": {
+        "name": "Azure Gateway Load Balancer",
+        "description": "Transparent bump-in-the-wire insertion of NVAs (firewalls, IDS/IPS) into the traffic path. Chains to Standard LB or VM NIC using VXLAN encapsulation.",
+        "keyDetail": "Uses VXLAN protocol for traffic encapsulation. Automatic traffic symmetry. Provider/consumer model supports cross-subscription NVA insertion. Chains to public or internal LB frontends.",
+        "url": "https://learn.microsoft.com/en-us/azure/load-balancer/gateway-overview",
+        "diagram": "graph LR\n  T[\"Traffic\"] --> GLB[\"Gateway LB\\nBump-in-Wire\"] --> NVA[\"NVA\"]\n  style GLB fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Gateway Load Balancer (GWLB)",
+        "description": "Transparent traffic inspection service using GENEVE encapsulation to route traffic through third-party virtual appliances. Maintains flow stickiness for stateful inspection.",
+        "keyDetail": "Uses GENEVE protocol (port 6081). Integrates with Transit Gateway for cross-VPC/cross-account inspection. ~$0.0125/hr per endpoint + $0.004/GB. AWS's primary service for centralised NVA inspection.",
+        "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/gateway/introduction.html",
+        "diagram": "graph LR\n  T[\"Traffic\"] --> GWLB[\"GWLB\\nGeneve Encap\"] --> NVA[\"Appliance\"]\n  style GWLB fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "No direct equivalent \u2014 closest: Cloud NGFW Enterprise or NVA with internal LB",
+        "description": "GCP has no native Gateway Load Balancer equivalent for transparent third-party NVA insertion. Cloud NGFW Enterprise (Palo Alto powered) provides managed next-gen firewall as a service but is not a generic NVA insertion mechanism. For third-party NVAs, use internal load balancer with custom routes.",
+        "keyDetail": "No bump-in-the-wire transparent insertion like Azure GWLB or AWS GWLB. Cloud NGFW Enterprise: managed firewall endpoints created per VPC/zone, uses firewall policies with Palo Alto inspection engine. For generic NVAs: deploy behind internal TCP/UDP LB with policy-based routes \u2014 requires manual route management.",
+        "url": "https://cloud.google.com/firewall/docs/about-intrusion-prevention",
+        "diagram": "graph TD\n  T[\"Traffic\"] --> NGFW[\"Cloud NGFW\\nEnterprise\"] --> I[\"L7\\nInspection\"]\n  style NGFW fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure (VXLAN) and AWS (GENEVE) both provide native bump-in-the-wire NVA insertion with automatic traffic symmetry \u2014 a significant operational benefit. GCP has no equivalent; you must design manual routing and failover for inline NVA inspection. GCP's Packet Mirroring only supports passive inspection (copy, not inline).",
+      "practitionerNote": "GCP does not offer a Gateway Load Balancer equivalent. If you need transparent inline inspection (common for regulated workloads), Azure Gateway LB and AWS GWLB require less custom routing configuration. On GCP, plan for manual UDR management and consider whether Packet Mirroring (passive) meets your compliance requirements. If you're deploying third-party firewalls (Palo Alto, Fortinet, Check Point) inline, Azure and AWS GWLB are both excellent and well-supported by vendors. Azure's chaining model requires fewer configuration steps. GCP does not offer a GWLB equivalent, which affects customers needing transparent NVA insertion\u2014you'll be doing custom routing which is adds operational complexity.",
+      "conceptName": "Network Traffic Inspection (NVA Chaining)"
+    },
+    {
+      "id": "microsegmentation",
+      "category": "security",
+      "azure": {
+        "name": "NSG + Application Security Groups (ASG)",
+        "description": "NSGs provide stateful L3/L4 filtering at subnet or NIC level. ASGs add logical grouping of VMs by role, enabling rules like 'allow web-tier to db-tier' without managing IP addresses.",
+        "keyDetail": "NSGs are free. ASGs allow role-based microsegmentation across subnets without IP management. Rules evaluated in priority order. Max 1000 NSG rules per NSG, 3000 ASGs per subscription.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/application-security-groups",
+        "diagram": "graph TD\n  NSG[\"NSG\"] --> ASG[\"ASG\\nApp Groups\"]\n  style NSG fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Security Groups",
+        "description": "Stateful L3/L4 firewalls applied at instance level. Rules can reference other Security Group IDs as source/destination, enabling tier-based isolation without IP management.",
+        "keyDetail": "Free to use. Up to 5 SGs per ENI (raisable), 60 inbound + 60 outbound rules per SG. SG-to-SG referencing is the microsegmentation primitive. No subnet-level SG equivalent (use NACLs for subnet filtering).",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html",
+        "diagram": "graph TD\n  SG[\"Security\\nGroup\"] --> REF[\"SG Reference\\nChaining\"]\n  style SG fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "VPC Firewall Policies + Network Tags",
+        "description": "Distributed firewall rules applied VPC-wide using network tags or service accounts as targets. Supports hierarchical policies at org, folder, and project level.",
+        "keyDetail": "Free for standard rules. IAM-governed Secure Tags (resource-based objects) alongside legacy network tags. Rules can target by tag, service account, or CIDR. Global VPC-wide rules with org-level policy inheritance. IAM-governed Secure Tags available for stronger identity binding.",
+        "url": "https://cloud.google.com/firewall/docs/firewall-policies-overview",
+        "diagram": "graph TD\n  FP[\"Firewall\\nPolicies\"] --> ST[\"Secure Tags\\nIAM-bound\"]\n  style FP fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure's ASGs and AWS's SG-to-SG references are explicit, named security objects \u2014 easier to audit and reference in automation. GCP's network tags are just string labels with no object backing, requiring disciplined tag management. AWS uniquely lacks subnet-level security groups (uses NACLs instead). GCP uniquely supports org-wide hierarchical policies baked into the firewall rules.",
+      "practitionerNote": "For auditable microsegmentation, Azure ASGs and AWS SG references are first-class resources with independent lifecycle management, unlike GCP's legacy network tags which are string labels. GCP's newer IAM-governed Secure Tags (not legacy network tags) close this gap \u2014 use those instead of legacy tags in production.",
+      "conceptName": "Microsegmentation"
+    },
+    {
+      "id": "dns-security",
+      "category": "security",
+      "azure": {
+        "name": "Azure DNS Security Policy",
+        "description": "Active DNS firewall with domain blocking, allow/block/alert rules, and Microsoft Threat Intelligence feeds. GA Nov 2025. Replaces deprecated Defender for DNS (retired Aug 2023).",
+        "keyDetail": "Active DNS firewall \u2014 blocks (not just detects) malicious domains in real time. Enforces at VNet level via DNS Private Resolver. Supports custom domain lists and MS Threat Intel feed. Replaced the older detection-only Defender for DNS.",
+        "url": "https://learn.microsoft.com/en-us/azure/dns/dns-security-policy",
+        "diagram": "graph TD\n  DNS[\"DNS Security\\nPolicy\"] --> R[\"Resolution\\nFiltering\"]\n  style DNS fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Route 53 Resolver DNS Firewall",
+        "description": "DNS-layer firewall for VPCs that blocks/allows DNS queries based on managed threat intelligence feeds and custom domain lists. Prevents malware C2 and data exfiltration at the DNS layer.",
+        "keyDetail": "Active enforcement \u2014 can return NXDOMAIN, NODATA, or custom responses for blocked domains. AWS-managed threat lists for malware, botnets, phishing. DNS Firewall Advanced adds DGA and tunneling detection. Managed via Firewall Manager.",
+        "url": "https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resolver-dns-firewall.html",
+        "diagram": "graph TD\n  R53[\"Route 53 DNS\\nFirewall\"] --> DL[\"Domain\\nLists\"]\n  style R53 fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "DNS Armor + Cloud NGFW FQDN filtering",
+        "description": "DNS Armor (GA Jan 2026, Infoblox partnership) provides DNS threat detection and blocking for C2, DGA, tunneling. Cloud NGFW supports FQDN-based filtering rules.",
+        "keyDetail": "DNS Armor requires Cloud DNS; FQDN filtering in network firewall policies.",
+        "url": "https://cloud.google.com/dns/docs/threat-detection",
+        "diagram": "graph TD\n  DA[\"DNS Armor\"] --> TI[\"Threat\\nIntelligence\"]\n  style DA fill:#EA4335,color:#fff"
+      },
+      "differences": "All three clouds now have active DNS security. AWS Route 53 DNS Firewall (2021) is longest-established with managed threat lists. Azure DNS Security Policy (2025) integrates with Microsoft Threat Intelligence. GCP DNS Armor (2025) is newest, powered by Infoblox.",
+      "practitionerNote": "All three clouds now offer native active DNS-layer security. AWS Route 53 DNS Firewall (2021) is longest-established with managed threat lists and Advanced DGA detection. Azure DNS Security Policy (GA 2025) actively blocks malicious domains via DNS Private Resolver \u2014 no longer needs third-party. GCP DNS Armor (GA 2026) adds Infoblox-powered threat intelligence. For multi-cloud consistency, third-party DNS firewalls (Infoblox, Cloudflare Gateway) still make sense if you want a single pane across all three clouds.",
+      "conceptName": "DNS Security"
+    },
+    {
+      "id": "tls-inspection",
+      "category": "security",
+      "azure": {
+        "name": "Azure Firewall Premium (TLS Inspection)",
+        "description": "Outbound and east-west TLS decryption/re-encryption with IDPS, URL filtering, and web category filtering. Uses customer-provided intermediate CA from Key Vault.",
+        "keyDetail": "Premium-only feature \u2014 not available on Basic or Standard SKUs. Premium: 10 Gbps with TLS + IDPS Deny mode (common production config); 100 Gbps TLS-only or TLS + IDPS Alert-only. Uses customer-provided intermediate CA certificate from Key Vault.",
+        "url": "https://learn.microsoft.com/en-us/azure/firewall/premium-features",
+        "diagram": "graph TD\n  FW[\"FW Premium\\nOutbound TLS\"] --> AG[\"AppGW\\nInbound TLS\"]\n  style FW fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Network Firewall (TLS Inspection)",
+        "description": "Supports inbound and outbound TLS decryption using Suricata rules for L3-L7 inspection. Certificates managed via AWS Certificate Manager (ACM).",
+        "keyDetail": "Supports both inbound AND outbound TLS inspection (broader than Azure). Suricata rule engine for custom IDS/IPS signatures. Certificates imported to ACM. Additional cost for TLS-enabled endpoints.",
+        "url": "https://docs.aws.amazon.com/network-firewall/latest/developerguide/tls-inspection-configurations.html",
+        "diagram": "graph TD\n  NFW[\"Network FW\\nTLS Inspect\"] --> R[\"Suricata\\nRules\"]\n  style NFW fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Cloud NGFW Enterprise (TLS Inspection)",
+        "description": "Inbound and outbound TLS decryption with L7 inspection including IDPS and URL filtering. Uses Google Certificate Authority Service for dynamic short-lived certificate issuance.",
+        "keyDetail": "Supports TLS 1.0-1.3 and wide cipher suite range. Google-managed CA pools via Certificate Authority Service \u2014 less operational burden than Azure/AWS manual cert management. Regional deployment requires per-region CA pool setup.",
+        "url": "https://cloud.google.com/firewall/docs/about-tls-inspection",
+        "diagram": "graph TD\n  NGFW[\"Cloud NGFW\\nTLS Inspect\"] --> P[\"Policy\\nDecrypt\"]\n  style NGFW fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure Firewall Premium only inspects outbound/east-west TLS \u2014 inbound requires Application Gateway WAF (two products). AWS Network Firewall and GCP Cloud NGFW both support inbound + outbound in a single product. GCP's use of Certificate Authority Service for dynamic cert issuance reduces operational overhead for certificate management. AWS's Suricata engine gives the most flexibility for custom signatures.",
+      "practitionerNote": "Azure separates outbound TLS inspection (Firewall Premium) from inbound TLS inspection (Application Gateway WAF) (inbound TLS) is a an operational challenge \u2014 you need two products to cover both directions. AWS and GCP handle it in one. If you need custom IDS signatures, AWS Suricata is most flexible.",
+      "conceptName": "TLS Inspection"
+    },
+    {
+      "id": "service-tags-routing",
+      "category": "security",
+      "azure": {
+        "name": "Service Tags (in UDRs, NSGs, Azure Firewall)",
+        "description": "Microsoft-maintained collections of IP prefixes for Azure services (Storage, SQL, AzureCloud, etc.). Usable in NSGs, UDRs, and Azure Firewall rules as logical addresses.",
+        "keyDetail": "Automatically updated by Microsoft. ~390+ service tags available. Can be used in route tables to steer service traffic through NVAs. Available as downloadable JSON for on-premises firewalls. Cannot create custom service tags.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/service-tags-overview",
+        "diagram": "graph TD\n  ST[\"Service Tags\\nMS-Managed\"] --> UDR[\"UDR\\nAuto-Updated\"]\n  style ST fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Managed Prefix Lists",
+        "description": "AWS-maintained collections of IP CIDR blocks for specific services (S3, DynamoDB, CloudFront). Usable in security groups, route tables, and Network Firewall rules.",
+        "keyDetail": "AWS-managed prefix lists for S3, DynamoDB, CloudFront, etc. Also supports customer-managed prefix lists (custom CIDR collections). Shareable via AWS RAM across accounts. Referenced by ID (pl-xxxx) in routes and SGs.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/managed-prefix-lists.html",
+        "diagram": "graph TD\n  MPL[\"Managed\\nPrefix Lists\"] --> RT[\"Route Table\\nCustomer-Managed\"]\n  style MPL fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "No direct equivalent",
+        "description": "GCP has no managed service tag or prefix list abstraction. Service IP ranges must be manually managed or accessed via published JSON files. VPC Service Controls and Private Google Access provide identity-based alternatives.",
+        "keyDetail": "Reusable named IP sets via Address Groups (project or org scoped) for Cloud NGFW and Cloud Armor rules. Also Google Threat Intelligence named lists. Google publishes service IP ranges as JSON but doesn't provide a referenceable object for use in routes or firewall rules.",
+        "diagram": "graph TD\n  NA[\"No Native\\nEquivalent\"] --> W[\"Manual\\nCIDR Mgmt\"]\n  style NA fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/vpc/docs/firewalls#service-accounts-vs-tags"
+      },
+      "differences": "Azure Service Tags and AWS Prefix Lists are conceptually equivalent \u2014 both are auto-updated IP collections usable in routing and security rules. AWS additionally supports customer-managed prefix lists (shareable across accounts). GCP has no equivalent IP-based abstraction; it favors identity and perimeter-based controls over IP-based routing to services.",
+      "practitionerNote": "AWS's customer-managed prefix lists are a differentiating feature \u2014 you can create reusable CIDR collections for your own services and share them via RAM. Azure's service tags are read-only (Microsoft-managed). GCP does not offer an equivalent feature, which is a difference noted by network engineers who think in terms of routes and prefixes.",
+      "conceptName": "Service Tags / Prefix Lists"
+    },
+    {
+      "id": "public-dns-hosting",
+      "category": "dns-paas",
+      "azure": {
+        "name": "Azure DNS",
+        "description": "Authoritative DNS hosting on Azure's global anycast network. Supports all standard record types. No domain registration \u2014 requires external registrar.",
+        "keyDetail": "100% SLA. Up to 25,000 record sets per zone. 1,000 zones per subscription (raisable). No integrated health checks \u2014 requires Traffic Manager. Supports alias record sets for Azure resources (Public IP, Traffic Manager, Front Door, CDN endpoints). ~$0.50/zone/month.",
+        "url": "https://learn.microsoft.com/en-us/azure/dns/dns-overview",
+        "diagram": "graph TD\n  DNS[\"Azure DNS\"] --> Z[\"Zone\\nDelegation\"]\n  style DNS fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Amazon Route 53",
+        "description": "Authoritative DNS hosting with integrated health checks, domain registration, and advanced traffic routing (latency, geo, weighted, failover). 100% SLA.",
+        "keyDetail": "100% SLA. 10,000 records per zone (raisable). ALIAS records for apex domains. Built-in health checks with DNS failover. Domain registration included. ~$0.50/zone/month + $0.40/million queries.",
+        "url": "https://docs.aws.amazon.com/route53/",
+        "diagram": "graph TD\n  R53[\"Route 53\"] --> HC[\"Health Checks\\n+ Failover\"]\n  style R53 fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Google Cloud DNS",
+        "description": "Authoritative DNS hosting on Google's global anycast network. 100% SLA for Premium tier. Full DNSSEC support. No domain registration (use Cloud Domains separately).",
+        "keyDetail": "100% SLA for Cloud DNS. Up to 10,000 records per zone (raisable). Up to ~10K QPS per VPC per zone per project. Cloud DNS routing policies now support integrated health checks for public IPs \u2014 supports health-checked routing policies natively (no Traffic Director required). ~$0.20/zone/month + $0.40/million queries.",
+        "url": "https://cloud.google.com/dns/docs/overview",
+        "diagram": "graph TD\n  CD[\"Cloud DNS\"] --> Z[\"Anycast\\nZones\"]\n  style CD fill:#EA4335,color:#fff"
+      },
+      "differences": "Route 53 has the broadest feature set \u2014 integrated health checks, domain registration, and advanced traffic routing in one product. Azure DNS and GCP Cloud DNS are authoritative-only and require separate services for health checks and traffic management. GCP offers the highest raw query capacity (1M QPS/project). Azure DNS lacks domain registration entirely.",
+      "practitionerNote": "Route 53's integrated health checks and ALIAS records simplify active-active and failover DNS patterns. Azure DNS requires Traffic Manager (separate, more expensive) for equivalent functionality. GCP Cloud DNS is the cheapest at $0.20/zone.",
+      "conceptName": "Public DNS Hosting"
+    },
+    {
+      "id": "private-dns-zones",
+      "category": "dns-paas",
+      "azure": {
+        "name": "Azure DNS Private Zones",
+        "description": "Managed private DNS zones resolvable within linked Azure VNets. Supports auto-registration of VM DNS records. Linkable across subscriptions.",
+        "keyDetail": "Up to 1,000 private zones per subscription. Auto-registration links VMs to zones automatically. Can link a zone to up to 1,000 VNets. Split-horizon DNS supported (same zone name public + private). ~$0.50/zone (first 25), then $0.10/month.",
+        "url": "https://learn.microsoft.com/en-us/azure/dns/private-dns-overview",
+        "diagram": "graph TD\n  PZ[\"Private Zone\"] --> AR[\"Auto-Reg\\nVM Records\"]\n  style PZ fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Route 53 Private Hosted Zones",
+        "description": "Managed private DNS zones associated with one or more VPCs for internal name resolution. Supports cross-region and cross-account VPC associations.",
+        "keyDetail": "Associable with VPCs across regions and accounts. Supports conditional forwarding via Resolver rules. Health checks available for private records. ~$0.50/zone/month for first 25, then $0.10. No auto-registration of instances. Note: Route 53 health probes cannot directly reach private IPs or interface endpoints \u2014 use CloudWatch alarms or Lambda-based health signals for private failover.",
+        "url": "https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zones-private.html",
+        "diagram": "graph TD\n  PHZ[\"Private\\nHosted Zone\"] --> VPC[\"VPC\\nAssociation\"]\n  style PHZ fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Cloud DNS Private Zones",
+        "description": "Managed private DNS zones scoped to specific VPC networks. Supports cross-project VPC binding and DNS peering between VPCs.",
+        "keyDetail": "Supports DNS peering (one VPC delegates resolution to another). Cross-project zone binding available. DNSSEC is NOT supported for private zones \u2014 public zones only. ~$0.20/zone/month. No auto-registration of VM records.",
+        "url": "https://cloud.google.com/dns/docs/zones/zones-overview",
+        "diagram": "graph TD\n  PZ[\"Private Zone\"] --> VPC[\"VPC\\nBinding\"]\n  style PZ fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure uniquely supports auto-registration of VM records into private zones \u2014 a significant convenience. AWS Private Hosted Zones support health checks for private records, which Azure and GCP do not. GCP's DNS peering concept is unique \u2014 it allows one VPC to delegate name resolution to another VPC's private zones without zone replication.",
+      "practitionerNote": "Azure's auto-registration is a differentiating capability for private DNS \u2014 VMs register themselves automatically. AWS and GCP require external automation for the same. For cross-account/project sharing, all three support it but with different mechanics. Budget for the DNS zone sprawl that comes with Private Endpoints.",
+      "conceptName": "Private DNS Zones"
+    },
+    {
+      "id": "dns-forwarding-resolution",
+      "category": "dns-paas",
+      "azure": {
+        "name": "Azure DNS Private Resolver",
+        "description": "Managed DNS forwarding service with inbound and outbound endpoints. Replaces the need for custom DNS VMs for hybrid resolution between Azure VNets and on-premises networks.",
+        "keyDetail": "Inbound endpoint: accepts queries from on-prem into Azure. Outbound endpoint: forwards queries from Azure to on-prem/external. Deployed per-VNet. Eliminates need for IaaS DNS forwarders. GA since 2022. ~$0.25/hr per endpoint.",
+        "url": "https://learn.microsoft.com/en-us/azure/dns/dns-private-resolver-overview",
+        "diagram": "graph LR\n  ON[\"On-prem\"] --> DPR[\"DNS Private\\nResolver\"] --> PZ[\"Private\\nZones\"]\n  style DPR fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Route 53 Resolver (Inbound/Outbound Endpoints)",
+        "description": "Managed DNS resolver with inbound and outbound endpoints for hybrid DNS resolution between VPCs and on-premises networks. Includes DNS Firewall integration.",
+        "keyDetail": "Inbound endpoints: on-prem resolves AWS private DNS. Outbound endpoints: VPC forwards queries to on-prem DNS. Conditional forwarding rules per domain. Integrates with DNS Firewall. ~$0.125/hr per endpoint IP + $0.40/million queries.",
+        "url": "https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resolver.html",
+        "diagram": "graph LR\n  ON[\"On-prem\"] --> R53R[\"Route 53\\nResolver\"] --> PHZ[\"Hosted\\nZones\"]\n  style R53R fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Cloud DNS Forwarding / DNS Peering",
+        "description": "DNS forwarding zones forward queries for specific domains to on-premises or external DNS via Cloud VPN/Interconnect. DNS peering delegates resolution between VPCs.",
+        "keyDetail": "Outbound forwarding via forwarding zones to on-prem. Inbound forwarding requires configuring an inbound server policy (alternative IP). DNS peering: one VPC delegates to another VPC's DNS. No separate 'resolver endpoint' resource \u2014 built into Cloud DNS.",
+        "url": "https://cloud.google.com/dns/docs/zones/forwarding-zones",
+        "diagram": "graph LR\n  ON[\"On-prem\"] --> FZ[\"Forwarding\\nZones\"] --> PZ[\"Private\\nZones\"]\n  style FZ fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure and AWS both deploy explicit resolver endpoints (dedicated resources with IPs) for hybrid DNS \u2014 GCP builds forwarding into the Cloud DNS service itself (no dedicated endpoint resource). AWS Route 53 Resolver is the longest-established, with integrated DNS Firewall and conditional forwarding rules. Azure DNS Private Resolver eliminated the long-standing need for IaaS DNS forwarders in Azure.",
+      "practitionerNote": "Azure DNS Private Resolver was a significant improvement \u2014 before its release, Azure customers had to run DNS forwarder VMs for hybrid resolution. All three clouds now have managed solutions. For multi-cloud DNS, chain them: Azure Private Resolver \u2194 Route 53 Resolver \u2194 GCP forwarding zones via VPN tunnels.",
+      "conceptName": "DNS Forwarding / Resolution",
+      "diagram": "graph TD\n    subgraph Azure\n        APR[DNS Private\nResolver] --- |Inbound| AI[On-prem\nresolves Azure]\n        APR --- |Outbound| AO[Azure\nresolves on-prem]\n    end\n    subgraph AWS\n        AR[Route 53\nResolver] --- |Inbound EP| BI[On-prem\nresolves AWS]\n        AR --- |Outbound EP| BO[AWS\nresolves on-prem]\n    end\n    subgraph GCP\n        GD[Cloud DNS\nForwarding] --- |Inbound\npolicy| GI[On-prem\nresolves GCP]\n        GD --- |Forwarding\nzone| GO[GCP\nresolves on-prem]\n    end"
+    },
+    {
+      "id": "private-connectivity-paas",
+      "category": "dns-paas",
+      "azure": {
+        "name": "Azure Private Link + Private Endpoint",
+        "description": "Projects a PaaS service into your VNet as a NIC with a private IP. Traffic stays on Azure backbone. Supports 100+ Azure services, partner services, and customer-owned services.",
+        "keyDetail": "Default limit ~1,000 Private Endpoints per VNet (High Scale Private Endpoint preview supports up to 5,000 per VNet). Requires DNS CNAME chain modification (public FQDN \u2192 privatelink.*.FQDN \u2192 private IP). Each endpoint gets a NIC in your subnet. ~$0.01/hr per endpoint + $0.01/GB processed.",
+        "diagram": "graph LR\n  VM[VM] --> PE[\"Private\\nEndpoint\"] --> SQL[(PaaS)]\n  style PE fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/private-link/private-link-overview"
+      },
+      "aws": {
+        "name": "AWS PrivateLink + Interface VPC Endpoint",
+        "description": "Creates ENIs (Elastic Network Interfaces) in your VPC subnet with private IPs to access AWS services, SaaS, or custom services over the AWS network.",
+        "keyDetail": "Default 50 interface endpoints per VPC (raisable to 1,000+). Auto-creates private hosted zone entries for DNS resolution. Supports cross-region PrivateLink (2025). ~$0.01/hr per endpoint per AZ + $0.01/GB processed.",
+        "diagram": "graph LR\n  EC2[EC2] --> VE[\"Interface\\nEndpoint\"] --> S3[(Service)]\n  style VE fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html"
+      },
+      "gcp": {
+        "name": "Private Service Connect (PSC)",
+        "description": "Consumer-initiated private connectivity to Google APIs, managed services, or producer-published services. Uses forwarding rules and PSC endpoints within VPC subnets.",
+        "keyDetail": "Default 50 PSC endpoints per VPC per region (raisable). Consumer endpoint model with explicit connection acceptance. Supports Google APIs, partner services, and custom producer services. Automatic DNS zone creation for Google API endpoints.",
+        "diagram": "graph LR\n  VM[VM] --> PSC[\"PSC\\nEndpoint\"] --> SVC[(Service)]\n  style PSC fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/vpc/docs/private-service-connect"
+      },
+      "differences": "Azure requires the most DNS work \u2014 you must create/manage privatelink.* DNS zones and understand the CNAME chain. AWS creates private hosted zone entries more automatically. GCP PSC is the most abstracted \u2014 automatic DNS and a 'connection' model where consumers request and producers accept. All three use NAT to support overlapping address spaces.",
+      "practitionerNote": "Azure Private Endpoint DNS is the a common source of deployment issues \u2014 the CNAME chain from publicname \u2192 privatelink.publicname \u2192 private IP is a common source of configuration errors. Budget significant time for DNS zone strategy (centralised vs per-VNet). AWS is slightly easier for DNS. GCP PSC is the most abstracted model but has the smallest service catalog.",
+      "conceptName": "Private Connectivity to PaaS"
+    },
+    {
+      "id": "gateway-service-access",
+      "category": "dns-paas",
+      "azure": {
+        "name": "Service Endpoints",
+        "description": "Routes traffic from VNet subnets to Azure PaaS services over the Azure backbone. Services retain public IPs but accept traffic only from enabled subnets.",
+        "keyDetail": "Free to use. Enabled per-subnet, per-service. Supports Storage, SQL, Cosmos DB, Key Vault, Event Hubs, and more. Service keeps its public IP \u2014 adds a VNet rule to the service firewall. No private IP assigned. Being superseded by Private Endpoints.",
+        "url": "https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-service-endpoints-overview",
+        "diagram": "graph LR\n  SUB[\"Subnet\"] --> SE[\"Service\\nEndpoint\"] --> PaaS[\"Azure\\nPaaS\"]\n  style SE fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Gateway VPC Endpoints",
+        "description": "Route table entries that direct traffic to S3 or DynamoDB through the AWS backbone. Free, no NAT gateway required. Limited to only two services.",
+        "keyDetail": "Free to use. Only supports S3 and DynamoDB (all other services require Interface Endpoints/PrivateLink). Adds route table entry pointing to the gateway endpoint. Policy-based access control. No ENI or private IP allocated.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html",
+        "diagram": "graph LR\n  SUB[\"Subnet\"] --> GWE[\"Gateway VPC\\nEndpoint\"] --> S3[\"S3 /\\nDynamoDB\"]\n  style GWE fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Private Google Access",
+        "description": "Subnet-level flag that allows VMs without public IPs to reach Google APIs and services over Google's backbone. Covers all Google APIs.",
+        "keyDetail": "Free, per-subnet toggle. VMs without external IPs can reach googleapis.com. Broadest coverage \u2014 works with all Google APIs/services. No private IP assigned to services. Traffic still goes to public API endpoints but stays on Google's network.",
+        "url": "https://cloud.google.com/vpc/docs/private-google-access",
+        "diagram": "graph LR\n  SUB[\"Subnet\"] --> PGA[\"Private Google\\nAccess\"] --> API[\"Google\\nAPIs\"]\n  style PGA fill:#EA4335,color:#fff"
+      },
+      "differences": "AWS Gateway VPC Endpoints are the narrowest in scope \u2014 only S3 and DynamoDB. Azure Service Endpoints cover many PaaS services but services retain public IPs (just backbone-routed). GCP Private Google Access is the broadest \u2014 a single subnet flag covers ALL Google APIs. None of these allocate private IPs to services \u2014 that's what Private Link/PrivateLink/PSC are for.",
+      "practitionerNote": "These are all 'v1' approaches being superseded by their Private Link/PrivateLink/PSC equivalents. GCP Private Google Access is still useful as a simple subnet toggle. Azure Service Endpoints are being superseded in favour of Private Endpoints. AWS Gateway Endpoints remain useful for free S3/DynamoDB access in private subnets.",
+      "conceptName": "Gateway-Style Service Access"
+    },
+    {
+      "id": "cross-tenant-private-connectivity",
+      "category": "dns-paas",
+      "azure": {
+        "name": "Azure Private Link Service",
+        "description": "Exposes your service (behind a Standard Load Balancer) as a Private Link resource that consumers in other tenants/subscriptions can connect to via Private Endpoints.",
+        "keyDetail": "Provider deploys Private Link Service behind an internal Standard LB. Consumer creates a Private Endpoint referencing the service's resource ID. Supports overlapping address spaces via NAT. Provider approves/rejects connection requests. Max 1,000 connections per PLS.",
+        "url": "https://learn.microsoft.com/en-us/azure/private-link/private-link-service-overview",
+        "diagram": "graph LR\n  C[\"Consumer\\nPE\"] --> PLS[\"Private Link\\nService\"] --> LB[\"Provider\\nLB\"]\n  style PLS fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS PrivateLink (Endpoint Service)",
+        "description": "Provider exposes a service behind an NLB as a VPC Endpoint Service. Consumers in other accounts create Interface VPC Endpoints to connect. Native cross-account use case.",
+        "keyDetail": "Provider creates Endpoint Service behind NLB. Consumer creates Interface Endpoint. Provider controls which AWS principals/accounts can connect. Supports overlapping VPC CIDRs. DNS domain ownership validation required for custom DNS names.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/privatelink/create-endpoint-service.html",
+        "diagram": "graph LR\n  C[\"Consumer\\nEndpoint\"] --> PL[\"PrivateLink\\nService\"] --> NLB[\"Provider\\nNLB\"]\n  style PL fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Private Service Connect (Producer)",
+        "description": "Producer publishes a service attachment backed by an Internal Load Balancer. Consumers in other projects/organizations create PSC endpoints to connect. Explicit connection acceptance model.",
+        "keyDetail": "Producer creates a service attachment with accept/reject lists per consumer project. Consumer creates a PSC endpoint with a forwarding rule. Supports overlapping subnets via NAT. Cross-organization support. Max 10 PSC endpoints per service attachment by default (raisable). NAT subnet for PSC; 250 default connections per service attachment (configurable at creation).",
+        "url": "https://cloud.google.com/vpc/docs/configure-private-service-connect-producer",
+        "diagram": "graph LR\n  C[\"Consumer\\nEndpoint\"] --> PSC[\"PSC\\nProducer\"] --> ILB[\"Provider\\nILB\"]\n  style PSC fill:#EA4335,color:#fff"
+      },
+      "differences": "All three are architecturally similar \u2014 provider/producer puts a service behind a load balancer, publishes it, and consumers connect via private endpoints with explicit approval. Azure uniquely uses SNAT on the provider side (consumer traffic appears as NAT'd IPs). AWS requires DNS domain ownership validation for custom private DNS names. GCP's accept/reject lists are the most explicit connection control mechanism.",
+      "practitionerNote": "This is the ISV/SaaS architecture pattern. All three clouds support production ISV/SaaS architectures with cross-tenant private connectivity. AWS PrivateLink is the longest-established. GCP PSC producer is newer but well-designed. All three handle overlapping address spaces via NAT \u2014 critical for multi-tenant SaaS.",
+      "conceptName": "Cross-Tenant / Cross-Account Private Connectivity",
+      "diagram": "graph LR\n    subgraph Provider\n        APLS[Azure: Private\nLink Service]\n        BNLB[AWS: NLB +\nPrivateLink]\n        GPSC[GCP: PSC\nProducer]\n    end\n    subgraph Consumer\n        APE[Private\nEndpoint]\n        BVPE[Interface\nVPC Endpoint]\n        GCPE[PSC\nEndpoint]\n    end\n    APLS --> |Approval\nworkflow| APE\n    BNLB --> |Acceptance\nrequired| BVPE\n    GPSC --> |Connection\nacceptance| GCPE"
+    },
+    {
+      "id": "private-dns-for-paas",
+      "category": "dns-paas",
+      "azure": {
+        "name": "privatelink.* DNS Zones",
+        "description": "Each Azure PaaS service has a corresponding privatelink.* DNS zone (e.g., privatelink.blob.core.windows.net). Public FQDN CNAMEs to privatelink FQDN, which resolves to private IP in the linked VNet.",
+        "keyDetail": "Requires creating 100+ different privatelink.* zones for full PaaS coverage. CNAME chain: publicname.service.azure.com \u2192 publicname.privatelink.service.azure.com \u2192 private IP. Central DNS zone management is recommended but complex at scale.",
+        "url": "https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-dns",
+        "diagram": "graph TD\n  PE[\"Private\\nEndpoint\"] --> PZ[\"100+ privatelink\\nDNS Zones\"]\n  style PE fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "VPC Endpoint Private DNS",
+        "description": "Interface VPC Endpoints can enable private DNS, which creates a private hosted zone that overrides the public service endpoint DNS within the VPC.",
+        "keyDetail": "Enable 'Private DNS' on the endpoint to auto-create a private hosted zone. Public FQDN resolves to private endpoint IPs inside the VPC. Simpler than Azure \u2014 one toggle per endpoint. Domain ownership validation required for custom DNS names on endpoint services.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/privatelink/interface-endpoints.html",
+        "diagram": "graph TD\n  VE[\"VPC\\nEndpoint\"] --> DNS[\"Auto-DNS\\nResolution\"]\n  style VE fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "PSC Automatic DNS",
+        "description": "Private Service Connect endpoints for Google APIs automatically create managed private DNS zones. Minimal DNS configuration required \u2014 Google handles zone creation and record management.",
+        "keyDetail": "PSC for Google APIs auto-creates p.googleapis.com DNS zone. Custom endpoints use service attachment names. Least DNS management overhead of the three. Less customisable \u2014 you use Google's managed DNS names, not custom CNAMEs.",
+        "url": "https://cloud.google.com/vpc/docs/dns-vpc-hosted-services",
+        "diagram": "graph TD\n  PSC[\"PSC\\nEndpoint\"] --> DNS[\"Auto-DNS\\nEntry\"]\n  style PSC fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure requires the most DNS effort \u2014 dozens of privatelink.* zones to create and manage, plus understanding the CNAME chain. AWS is simpler \u2014 toggle 'Private DNS' on the endpoint and it auto-creates the hosted zone override. GCP is simplest \u2014 fully automatic DNS for Google API endpoints. The trade-off is customisability: Azure is most flexible, GCP is least.",
+      "practitionerNote": "Azure's DNS model is the common operational challenge in the entire Private Endpoint story. You need ~100+ privatelink.* zones for full coverage, and getting the DNS forwarding chain right for hybrid scenarios requires careful planning. Use Azure Policy to auto-create DNS zones and records. AWS and GCP require less DNS configuration.",
+      "conceptName": "Private DNS for PaaS Services"
+    },
+    {
+      "id": "l4-load-balancer",
+      "category": "app-delivery",
+      "azure": {
+        "name": "Azure Load Balancer (Standard)",
+        "description": "Regional Layer 4 (TCP/UDP) load balancer with zone-redundant deployment, hash-based distribution, and HA ports for internal workloads.",
+        "keyDetail": "100 Gbps+ throughput, 1M+ connections/sec, 1000 backend pool instances. Pricing: ~$0.025/hr + ~$0.01/GB outbound processed.",
+        "diagram": "graph TD\n  LB[\"Azure LB\\nStandard\"] --> VM1[VM 1]\n  LB --> VM2[VM 2]\n  style LB fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/load-balancer/load-balancer-overview"
+      },
+      "aws": {
+        "name": "Network Load Balancer (NLB)",
+        "description": "Regional Layer 4 load balancer with ultra-low latency, static IPs per AZ (Elastic IP), and TLS termination. Scales automatically with no pre-warming.",
+        "keyDetail": "100 Gbps+ per AZ, millions of RPS. Pricing: ~$0.0225/hr + $0.006/LCU-hr. Charges based on New/Active connections + processed bytes (NLCU model).",
+        "diagram": "graph TD\n  NLB[\"Network\\nLoad Balancer\"] --> T1[Target 1]\n  NLB --> T2[Target 2]\n  style NLB fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html"
+      },
+      "gcp": {
+        "name": "Passthrough / Proxy Network Load Balancer",
+        "description": "Regional Layer 4 load balancer built on Google's Maglev system. External uses pass-through architecture preserving client IP; Internal for VPC-internal traffic.",
+        "keyDetail": "Hundreds of Gbps, millions of PPS. $0.025/hr for first 5 forwarding rules, then $0.01/hr per additional. Anycast IP available natively.",
+        "diagram": "graph TD\n  LB[\"Passthrough\\nNetwork LB\"] --> IG1[Instance 1]\n  LB --> IG2[Instance 2]\n  style LB fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/load-balancing/docs/network/networklb-backend-service"
+      },
+      "differences": "All three auto-scale with no hard throughput cap, but pricing models differ fundamentally. AWS charges per NLCU (a composite metric of connections + bytes), Azure charges per rule + outbound data, and GCP charges per forwarding rule + data. Azure and GCP preserve client IP natively; AWS NLB also preserves source IP. GCP's Maglev backbone is designed for low-latency traffic distribution.",
+      "practitionerNote": "Azure LB Basic SKU is free but not recommended for production. Standard costs per rule + data processed. AWS NLB charges per NLCU which makes costs hard to predict for bursty connection-heavy workloads. GCP pricing is simpler but watch for multiple forwarding rules adding up.",
+      "conceptName": "Layer 4 Load Balancer (Regional)"
+    },
+    {
+      "id": "l7-load-balancer",
+      "category": "app-delivery",
+      "azure": {
+        "name": "Application Gateway (v2)",
+        "description": "Regional Layer 7 load balancer with built-in WAF (OWASP ruleset), URL path/host routing, SSL offload, cookie-based affinity, and Application Gateway for Containers (AGC) for AKS integration.",
+        "keyDetail": "Autoscaling capacity units. Pricing: ~$0.228/GW-unit-hr + $0.008/GB processed. WAF adds ~$0.294/GW-unit-hr. Regional only\u2014use Front Door for global.",
+        "diagram": "graph TD\n  AG[\"App Gateway\\nv2\"] --> B1[Backend 1]\n  AG --> B2[Backend 2]\n  style AG fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/application-gateway/overview"
+      },
+      "aws": {
+        "name": "Application Load Balancer (ALB)",
+        "description": "Regional Layer 7 load balancer with advanced routing (path, host, header, query string, source IP), Lambda target integration, WebSocket support, and gRPC. WAF attached separately.",
+        "keyDetail": "Pricing: ~$0.0225/ALB-hr + $0.008/LCU-hr. LCU composite metric includes new connections, active connections, processed bytes, and rule evaluations. Regional only.",
+        "diagram": "graph TD\n  ALB[\"Application\\nLoad Balancer\"] --> TG1[Target 1]\n  ALB --> TG2[Target 2]\n  style ALB fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html"
+      },
+      "gcp": {
+        "name": "Regional Application Load Balancer",
+        "description": "Regional Layer 7 load balancer with URL maps for advanced routing, native gRPC support, managed SSL certs, and tight GKE/Cloud Run integration. Cloud Armor (WAF) attached separately.",
+        "keyDetail": "Pricing: ~$0.025/hr per forwarding rule + $0.008-$0.015/GB. Also available as Global HTTP(S) LB with single anycast IP\u2014unique among all three clouds at L7.",
+        "diagram": "graph TD\n  LB[\"Regional\\nApp LB\"] --> NEG1[NEG 1]\n  LB --> NEG2[NEG 2]\n  style LB fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/load-balancing/docs/https"
+      },
+      "differences": "Azure AppGW bundles WAF natively (no separate service), while AWS and GCP attach WAF as separate billable services (AWS WAF, Cloud Armor). AWS ALB has the most routing rule types (header, query string, source IP conditions). GCP's regional L7 LB is architecturally identical to its global L7 LB but scoped regionally\u2014meaning upgrade to global is trivial. All three are regional by default; going global requires Front Door (Azure), CloudFront+GA (AWS), or simply switching to the Global variant (GCP).",
+      "practitionerNote": "Azure AppGW v2 capacity-unit pricing can surprise you\u2014autoscaling means costs scale with traffic unpredictably. AWS ALB's LCU model is similarly complex. GCP's L7 LB is the easiest to take from regional to global. If you need WAF, Azure's integrated approach is simplest; AWS WAF and Cloud Armor both charge per rule + request.",
+      "conceptName": "Layer 7 Load Balancer (Regional)"
+    },
+    {
+      "id": "global-load-balancer",
+      "category": "app-delivery",
+      "azure": {
+        "name": "Azure Front Door (Standard/Premium)",
+        "description": "Global Layer 7 load balancer, CDN, and WAF in one service. Uses Microsoft's edge network (180+ POPs) for anycast HTTP(S) routing, SSL offload, caching, and Private Link origins.",
+        "keyDetail": "Standard: ~$0.01/GB transfer + $0.01/10K requests. Premium adds managed WAF rules + Private Link origins. Operates as an edge reverse proxy, not a pass-through anycast LB\u2014it's an edge reverse proxy. Front Door classic retirement planned March 2027 \u2014 migrate to Standard/Premium.",
+        "diagram": "graph TD\n  FD[\"Front Door\\nEdge PoPs\"] --> R1[\"Origin\\nRegion 1\"]\n  FD --> R2[\"Origin\\nRegion 2\"]\n  style FD fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/frontdoor/front-door-overview"
+      },
+      "aws": {
+        "name": "CloudFront + Global Accelerator",
+        "description": "CloudFront: global CDN with 600+ POPs, Lambda@Edge compute, and WAF integration for L7 HTTP(S). Global Accelerator: separate L3/L4 (TCP/UDP) global routing over AWS backbone with static anycast IPs.",
+        "keyDetail": "Two separate services needed for full coverage. CloudFront: $0.085-$0.12/GB. Global Accelerator: ~$0.025/hr + data transfer premium. Neither is a unified global LB like GCP's offering.",
+        "diagram": "graph TD\n  CF[CloudFront] --> GA[Global Accelerator]\n  GA --> R1[Region 1]\n  GA --> R2[Region 2]\n  style CF fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/global-accelerator/latest/dg/what-is-global-accelerator.html"
+      },
+      "gcp": {
+        "name": "Global External Application Load Balancer",
+        "description": "Anycast global Layer 7 load balancer with a single global IP. Traffic enters Google's network at the nearest edge and is routed to the closest healthy backend across all regions. Cloud CDN integrates natively.",
+        "keyDetail": "L4 and L7 global load balancers are separate products: External Global Network LB (L4) and Global External Application LB (L7). Single global anycast IP each. Cloud CDN is a checkbox integration on the Application LB. Pricing: per forwarding rule + GiB processed.",
+        "diagram": "graph TD\n  LB[\"Global App LB\\nSingle Anycast IP\"] --> R1[Region 1]\n  LB --> R2[Region 2]\n  style LB fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/load-balancing/docs/https"
+      },
+      "differences": "GCP's global LB is truly anycast by default\u2014a single IP serves all regions with automatic proximity routing. Azure Front Door and AWS CloudFront are CDN-style edge reverse proxies that terminate connections at edge POPs and re-establish them to origins. AWS uses separate services for L7 (CloudFront) and L4 (Global Accelerator), whereas GCP handles both in a single resource. Azure Front Door combines CDN+WAF+routing but is fundamentally a reverse proxy, not a pass-through anycast LB.",
+      "practitionerNote": "GCP's single-IP global load balancer is architecturally simple \u2014 a single anycast IP with automatic proximity routing. Azure Front Door is the closest equivalent but it's a reverse proxy with edge caching, not a true anycast LB. AWS requires stitching CloudFront and Global Accelerator together for similar coverage, which adds configuration overhead.",
+      "conceptName": "Global Load Balancer / CDN Edge"
+    },
+    {
+      "id": "cross-region-load-balancing",
+      "category": "app-delivery",
+      "azure": {
+        "name": "Cross-region Load Balancer",
+        "description": "Global Layer 4 (TCP/UDP) load balancer that chains regional Standard Load Balancers behind a single anycast global IP. Provides geo-proximity routing with 5-second health probe failover.",
+        "keyDetail": "Static anycast global IP, client IP preservation, instant failover. L4 only\u2014use Front Door for L7. Links existing regional LBs as backends.",
+        "url": "https://learn.microsoft.com/en-us/azure/load-balancer/cross-region-overview",
+        "diagram": "graph TD\n  CLB[\"Cross-Region\\nLB\"] --> R1[\"Region 1\"] & R2[\"Region 2\"]\n  style CLB fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Global Accelerator",
+        "description": "Layer 3/4 global traffic accelerator providing two static anycast IPs. Routes TCP/UDP traffic over AWS backbone to optimal regional endpoints (NLB, ALB, EC2, EIP) based on health and proximity.",
+        "keyDetail": "Not a load balancer per se\u2014it's a traffic accelerator and global failover mechanism. ~$0.025/hr + data transfer premium. Preserves source IP.",
+        "url": "https://docs.aws.amazon.com/global-accelerator/latest/dg/what-is-global-accelerator.html",
+        "diagram": "graph TD\n  GA[\"Global\\nAccelerator\"] --> R1[\"Region 1\"] & R2[\"Region 2\"]\n  style GA fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "External Global Network Load Balancer",
+        "description": "True global Layer 4 load balancer with a single anycast IP. Routes TCP/UDP traffic to nearest healthy backend across all regions using Google's Maglev backbone.",
+        "keyDetail": "Supports both L4 and L7 in the same product family. Single anycast IP, automatic cross-region failover, no separate regional LBs needed.",
+        "url": "https://cloud.google.com/load-balancing/docs/tcp",
+        "diagram": "graph TD\n  GLB[\"Global\\nNetwork LB\"] --> R1[\"Region 1\"] & R2[\"Region 2\"]\n  style GLB fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure's cross-region LB is explicitly a L4 global tier that chains existing regional LBs\u2014you deploy regional LBs first, then front them with the global tier. AWS Global Accelerator is technically a traffic accelerator, not a load balancer\u2014it routes to endpoints but doesn't directly load-balance across them. GCP's global network LB is the most native: a single product that handles L4 globally without needing separate regional LB deployments.",
+      "practitionerNote": "Azure's approach (regional LBs chained to a global LB) makes sense for existing deployments\u2014just add the global tier. AWS Global Accelerator is powerful but you're paying a premium for traffic traversing AWS backbone. GCP offers the simplest model: one LB, one IP, global by default. For pure L4 cross-region HA, all three work well\u2014choose based on your existing cloud.",
+      "conceptName": "Cross-Region Load Balancing"
+    },
+    {
+      "id": "dns-traffic-management",
+      "category": "app-delivery",
+      "azure": {
+        "name": "Azure Traffic Manager",
+        "description": "DNS-based global traffic routing with six methods: Priority (failover), Performance (latency), Geographic, Weighted, Subnet, and MultiValue. Works with Azure and external endpoints.",
+        "keyDetail": "DNS-only routing (~60s TTL). Per-query pricing + health check costs. Separate from Azure DNS (hosting). Supports non-Azure endpoints\u2014good for hybrid/multi-cloud.",
+        "url": "https://learn.microsoft.com/en-us/azure/traffic-manager/traffic-manager-overview",
+        "diagram": "graph TD\n  TM[\"Traffic\\nManager\"] --> P[\"DNS-based\\nRouting\"]\n  style TM fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Amazon Route 53 (Routing Policies)",
+        "description": "Unified DNS hosting + traffic management in one service. Supports Simple, Weighted, Failover, Latency, Geolocation, Geoproximity, IP-based, and Multi-Value routing policies with built-in health checks.",
+        "keyDetail": "Most comprehensive routing policy set (8 types including Geoproximity\u2014unique to Route 53). Pricing: per hosted zone + per query + health checks. Also handles domain registration.",
+        "url": "https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy.html",
+        "diagram": "graph TD\n  R53[\"Route 53\\nPolicies\"] --> P[\"Weighted /\\nLatency / Geo\"]\n  style R53 fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Cloud DNS (Routing Policies)",
+        "description": "Managed DNS with routing policies including weighted round robin (WRR), geolocation, geolocation with geofence, and failover. Failover routing policies with health checks are now GA. Health checks probe from multiple regions.",
+        "keyDetail": "Supports WRR, geolocation, geolocation with geofence, and failover routing policies. Health checks probe from multiple regions for failover decisions. For latency-based routing, GCP relies on its Global LB rather than DNS.",
+        "url": "https://cloud.google.com/dns/docs/routing-policies-overview",
+        "diagram": "graph TD\n  CD[\"Cloud DNS\\nRouting\"] --> P[\"Geo /\\nWeighted\"]\n  style CD fill:#EA4335,color:#fff"
+      },
+      "differences": "Route 53 has the broadest feature set, combining DNS hosting + routing + health checks + domain registration in one service. Azure separates DNS hosting (Azure DNS) from traffic routing (Traffic Manager) into two services. GCP's Cloud DNS takes a different approach to routing policies\u2014GCP's philosophy is to handle traffic management at the LB layer (using anycast), not at DNS. This is a fundamental architectural difference: GCP doesn't need DNS-level failover because its global LB handles it inherently.",
+      "practitionerNote": "If you need DNS-based multi-cloud or hybrid routing, Route 53 and Traffic Manager both support external endpoints well. GCP's simpler DNS routing isn't a gap\u2014it's a design choice because their global LB eliminates the need for DNS failover. For multi-cloud specifically, Route 53 or Traffic Manager are better DNS routers since they work across clouds.",
+      "conceptName": "DNS-Based Traffic Management"
+    },
+    {
+      "id": "cdn",
+      "category": "app-delivery",
+      "azure": {
+        "name": "Azure CDN / Azure Front Door",
+        "description": "Azure CDN classic profiles (Akamai retired Oct 2023, Edgio/Verizon retired Jan 2025) have been consolidated into Azure Front Door, which combines CDN + global routing + WAF. Front Door uses 180+ Microsoft POPs.",
+        "keyDetail": "Front Door Standard: ~$0.01/GB + $0.01/10K requests. Classic CDN from Akamai and Edgio (Verizon) are retired \u2014 Front Door Standard/Premium is the replacement.",
+        "url": "https://learn.microsoft.com/en-us/azure/frontdoor/front-door-overview",
+        "diagram": "graph TD\n  AFD[\"Front Door\\nCDN\"] --> E[\"Integrated\\nWAF + CDN\"]\n  style AFD fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Amazon CloudFront",
+        "description": "Largest cloud CDN with 750+ edge locations. Two-tier cache (edge + regional), Lambda@Edge for compute at edge, Origin Shield for origin protection, and integrated WAF/Shield DDoS protection.",
+        "keyDetail": "750+ POPs\u2014largest network. Pricing: $0.085-$0.12/GB first 10TB. New flat-rate plans ($15-$1000/mo) bundle CDN+WAF+DDoS+Route53. 1M requests + 100GB free tier.",
+        "url": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+        "diagram": "graph TD\n  CF[\"CloudFront\"] --> E[\"Largest Edge\\nNetwork\"]\n  style CF fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Cloud CDN",
+        "description": "CDN built on Google's global backbone, integrated with the Global HTTP(S) LB. Supports cache modes (CACHE_ALL_STATIC, USE_ORIGIN_HEADERS, FORCE_CACHE_ALL), signed URLs/cookies, and Cloud Armor.",
+        "keyDetail": "100+ edge locations. Pricing: $0.02-$0.20/GiB depending on region and volume. Cache fill charges apply. Tightest LB integration of the three.",
+        "url": "https://cloud.google.com/cdn/docs/overview",
+        "diagram": "graph TD\n  CDN[\"Cloud CDN\"] --> E[\"LB Checkbox\\nSimple Toggle\"]\n  style CDN fill:#EA4335,color:#fff"
+      },
+      "differences": "AWS CloudFront has the largest edge network (750+ POPs) and longest-established edge compute (Lambda@Edge). Azure is consolidating its CDN story into Front Door, combining CDN+routing+WAF into one product. GCP Cloud CDN is the simplest\u2014it's just a checkbox on the Global LB\u2014but has fewer edge locations (150+). CloudFront's new flat-rate plans are disrupting CDN pricing. Azure's multi-provider CDN (Akamai/Verizon tiers) is unique but being deprecated.",
+      "practitionerNote": "CloudFront has the largest edge network (750+ POPs) and the most established edge compute platform (Lambda@Edge). Azure's move to consolidate CDN into Front Door simplifies the story but means you're buying a reverse proxy + CDN + WAF bundle. GCP Cloud CDN is the easiest to enable (literally a checkbox) but has fewer edge locations than CloudFront or Front Door. For pure CDN workloads at scale, CloudFront's flat-rate plans are compelling.",
+      "conceptName": "Content Delivery Network (CDN)"
+    },
+    {
+      "id": "api-gateway",
+      "category": "app-delivery",
+      "azure": {
+        "name": "Azure API Management (APIM)",
+        "description": "Full-lifecycle API management platform with developer portal, policy engine (transform, rate-limit, cache), analytics, versioning, hybrid deployment via Azure Arc/K8s, and SOAP-to-REST conversion.",
+        "keyDetail": "Tiered pricing: Developer (~$50/mo), Basic, Standard, Premium (~$2,800/mo). Newer v2 tiers: Basic v2 (~$150/mo), Standard v2 (~$700/mo). Self-hosted gateway on K8s for hybrid. Broadest enterprise feature set of the three (dev portal, SOAP-to-REST, hybrid).",
+        "url": "https://learn.microsoft.com/en-us/azure/api-management/api-management-key-concepts",
+        "diagram": "graph TD\n  APIM[\"APIM\\nEnterprise\"] --> P[\"Dev Portal\\n+ Policies\"]\n  style APIM fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS API Gateway (REST/HTTP/WebSocket)",
+        "description": "Serverless API gateway tightly integrated with Lambda, Cognito, and IAM. Supports REST APIs, HTTP APIs (simpler/cheaper), and WebSocket APIs. Usage plans for rate limiting and API keys.",
+        "keyDetail": "Pay-per-call: $3.50/million REST API calls, $1.00/million HTTP API calls. Free tier: 1M calls/month for 12 months. Designed for serverless architectures with native Lambda integration.",
+        "url": "https://docs.aws.amazon.com/apigateway/",
+        "diagram": "graph TD\n  AG[\"API Gateway\\nServerless\"] --> L[\"Lambda\\nIntegration\"]\n  style AG fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Apigee API Management + API Gateway",
+        "description": "Apigee: enterprise API management with monetization, advanced analytics, ML-based anomaly detection, threat protection, and hybrid/multi-cloud deployment. API Gateway: simpler serverless option for Cloud Functions/Run.",
+        "keyDetail": "Apigee tiers: Standard/Enterprise/Enterprise Plus\u2014contact sales for pricing. API Gateway is simpler/cheaper for basic use. Apigee has strongest monetization and analytics features.",
+        "url": "https://cloud.google.com/apigee/docs",
+        "diagram": "graph TD\n  AP[\"Apigee\"] --> M[\"Monetization\\n+ Analytics\"]\n  style AP fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure APIM is the most balanced enterprise platform (developer portal, policies, hybrid). AWS API Gateway is the simplest and cheapest for serverless (pay-per-call, Lambda-native). GCP Apigee is the most feature-rich for API-as-a-product scenarios (monetization, ML analytics) but also the most expensive. AWS API Gateway lacks the developer portal and complex transformation policies that APIM and Apigee offer out of the box.",
+      "practitionerNote": "If you're serverless-first on AWS, API Gateway (HTTP API type) costs $1/million calls \u2014 the lowest price point of the three. Azure APIM is purpose-built for enterprise API programs that need developer portals and policy management. Apigee is designed for large-scale API programs and may exceed the requirements of many teams but notable if you're monetizing APIs externally. Azure and GCP support hybrid deployment \u2014 APIM via Arc, Apigee via hybrid runtime. AWS API Gateway is cloud-only with no hybrid runtime equivalent.",
+      "conceptName": "API Gateway"
+    },
+    {
+      "id": "reverse-proxy-private-origin",
+      "category": "app-delivery",
+      "azure": {
+        "name": "Azure Front Door + Private Link Origins",
+        "description": "Front Door Premium connects to backend services via Azure Private Link\u2014origin has no public IP. Traffic flows from edge POPs through Microsoft backbone to private endpoints (App Service, ILB, Storage).",
+        "keyDetail": "Requires Front Door Premium tier. Supported origins: App Service, ILB, Storage, custom Private Link services. Origin approval workflow required. Eliminates origin exposure completely.",
+        "url": "https://learn.microsoft.com/en-us/azure/frontdoor/private-link",
+        "diagram": "graph LR\n  U[\"Users\"] --> AFD[\"Front Door\"] --> PL[\"Private Link\\nOrigin\"]\n  style AFD fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "CloudFront VPC Origins",
+        "description": "CloudFront can connect to origins in private VPC subnets (ALB, NLB, EC2) without requiring public IPs. Launched late 2024 as a native feature replacing the old custom-header workaround.",
+        "keyDetail": "No public connectivity required for origins. Supports cross-account via AWS RAM. Managed secure channel from CloudFront to private VPC resources. No PrivateLink required\u2014it's native.",
+        "url": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html",
+        "diagram": "graph LR\n  U[\"Users\"] --> CF[\"CloudFront\"] --> VO[\"VPC\\nOrigins\"]\n  style CF fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Private Service Connect (PSC) + Global LB",
+        "description": "GCP uses Private Service Connect to expose services via private endpoints behind Internal LBs. Global LB can route to PSC endpoints, keeping backends fully private with no public exposure.",
+        "keyDetail": "PSC provides service-to-service private connectivity. No direct equivalent of Front Door+PL in a single product\u2014requires combining Global LB + PSC + ILB. More complex setup.",
+        "url": "https://cloud.google.com/vpc/docs/private-service-connect",
+        "diagram": "graph LR\n  U[\"Users\"] --> GLB[\"Global LB\"] --> PSC[\"PSC\\nOrigin\"]\n  style GLB fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure offers a tightly integrated approach: Front Door Premium + Private Link origins is a single feature toggle that removes public exposure entirely. AWS CloudFront VPC Origins (2024) achieves the same result natively without needing PrivateLink\u2014CloudFront connects directly to private VPC resources. GCP lacks a direct equivalent product; you must combine Global LB + PSC + Internal LB, which works but requires more configuration and doesn't have the same edge-to-private-backend integration.",
+      "practitionerNote": "This is a key security architecture pattern\u2014edge proxy with zero public origin exposure. Azure and AWS both provide mature first-party support for this pattern. GCP's approach works but requires more manual integration. If you're designing a secure web app architecture, Front Door Premium + Private Link (Azure) and CloudFront VPC Origins (AWS) are the most integrated solutions. GCP teams should look at PSC but expect more moving parts.",
+      "conceptName": "Reverse Proxy + Private Origin"
+    },
+    {
+      "id": "flow-logs",
+      "category": "monitoring",
+      "azure": {
+        "name": "VNet Flow Logs (Network Watcher)",
+        "description": "Captures IP flow information at the VNet level (replacing older NSG flow logs). Logs to Azure Storage for analysis via Traffic Analytics, Log Analytics, or SIEM export. Near real-time delivery.",
+        "keyDetail": "VNet-level granularity (broader than NSG). Free tier: first 5 GB/month, then $0.50/GB. Additional costs for storage + analytics. Near real-time. No sampling.",
+        "diagram": "graph LR\n  VNet[VNet] --> FL[\"VNet Flow Logs\"] --> SA[(Storage)]\n  style FL fill:#0078D4,color:#fff",
+        "url": "https://learn.microsoft.com/en-us/azure/network-watcher/vnet-flow-logs-overview"
+      },
+      "aws": {
+        "name": "VPC Flow Logs",
+        "description": "Captures IP traffic at VPC, subnet, or ENI (network interface) level. Logs to CloudWatch Logs or S3. Supports custom log formats and Parquet export. 5-10 minute delivery delay.",
+        "keyDetail": "Most granular scope (down to ENI level). ~$0.50/GB ingested to CloudWatch. S3 storage at standard rates. Retention configurable up to 10 years (CloudWatch) or unlimited (S3).",
+        "diagram": "graph LR\n  VPC[VPC] --> FL[\"VPC Flow Logs\"] --> CW[(CloudWatch / S3)]\n  style FL fill:#FF9900,color:#fff",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html"
+      },
+      "gcp": {
+        "name": "VPC Flow Logs",
+        "description": "Subnet-level flow logging with configurable sampling rate to balance cost vs visibility. Logs to Cloud Logging with export to BigQuery/Storage/Pub/Sub. Near real-time with 5-second aggregation.",
+        "keyDetail": "Configurable sampling rate (unique\u2014reduce costs at expense of completeness). Default 30-day retention in Cloud Logging; export to BigQuery/Storage for longer. Per-GB ingestion pricing.",
+        "diagram": "graph LR\n  VPC[VPC] --> FL[\"VPC Flow Logs\\nSampling knob\"] --> BQ[(BigQuery)]\n  style FL fill:#EA4335,color:#fff",
+        "url": "https://cloud.google.com/vpc/docs/flow-logs"
+      },
+      "differences": "All three capture similar flow data (5-tuple, bytes, packets, action) but differ in scope granularity and cost model. AWS is most granular (down to individual ENI), Azure captures at VNet level (simpler but less granular), and GCP uniquely offers configurable sampling to control costs. Azure's flow log feature is included with Network Watcher (pay storage only), AWS charges per GB ingested, and GCP charges per GB with sampling as a cost lever.",
+      "practitionerNote": "Azure's VNet flow logs include a 5 GB/month free tier then $0.50/GB \u2014 less expensive than AWS CloudWatch ingestion for most environments. AWS VPC Flow Logs at $0.50/GB ingestion to CloudWatch can get expensive fast for high-traffic environments\u2014use S3 destination and Athena queries instead. GCP's sampling knob is effective for cost control\u2014use 0.5 or lower sampling for large-scale monitoring.",
+      "conceptName": "Flow Logs"
+    },
+    {
+      "id": "network-diagnostics",
+      "category": "monitoring",
+      "azure": {
+        "name": "Azure Network Watcher",
+        "description": "Suite of network diagnostic tools: Connection Troubleshoot (live path test), IP Flow Verify (NSG rule check), Next Hop (routing analysis), Effective Security Rules, and interactive topology viewer.",
+        "keyDetail": "Largest number of diagnostic tools in a single service. Tests both config and live traffic. Includes packet capture, connection monitor, and topology. Integrated in Azure Portal.",
+        "url": "https://learn.microsoft.com/en-us/azure/network-watcher/network-watcher-overview",
+        "diagram": "graph TD\n  NW[\"Network\\nWatcher\"] --> IPF[\"IP Flow\\nVerify\"]\n  style NW fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "VPC Reachability Analyzer",
+        "description": "Static configuration-based path analysis. Analyzes routing tables, NACLs, security groups, and peering to determine if two resources can communicate\u2014without sending live traffic.",
+        "keyDetail": "Config-only analysis (no live traffic). Hop-by-hop visualization shows exactly which component blocks traffic. ~$0.10 per analysis. Supports cross-account, cross-VPC.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/reachability/what-is-reachability-analyzer.html",
+        "diagram": "graph TD\n  RA[\"Reachability\\nAnalyzer\"] --> P[\"Path\\nAnalysis\"]\n  style RA fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Connectivity Tests (Network Intelligence Center)",
+        "description": "Hybrid static/live network path verification. Simulates a test packet through config analysis AND optionally sends real traffic to verify actual delivery. Shows which network element blocks traffic.",
+        "keyDetail": "Unique dual-mode: config simulation + live data-plane test. Part of Network Intelligence Center. Supports hybrid/on-prem via Interconnect/VPN. Clear diagnostic output.",
+        "url": "https://cloud.google.com/network-intelligence-center/docs/connectivity-tests/overview",
+        "diagram": "graph TD\n  CT[\"Connectivity\\nTests\"] --> P[\"Hop-by-Hop\\nTrace\"]\n  style CT fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure Network Watcher is a full diagnostic suite (many tools under one umbrella), while AWS and GCP offer more focused path analysis tools. AWS Reachability Analyzer is config-only (no live traffic), making it safe for pre-production validation. GCP Connectivity Tests uniquely offer both config simulation AND live traffic testing. Azure is the only one with a bundled topology viewer and packet capture in the same tool.",
+      "practitionerNote": "Azure Network Watcher is the comprehensive single tool\u2014IP Flow Verify streamlines NSG rule troubleshooting. AWS Reachability Analyzer is great for pre-change validation ('will this route work?') without touching production traffic. GCP's dual-mode testing is a useful capability\u2014use config mode for planning, live mode for debugging. All three are essential diagnostic tools, and practitioners on any cloud should be aware of the equivalents on other platforms.",
+      "conceptName": "Network Diagnostics / Reachability"
+    },
+    {
+      "id": "traffic-analytics",
+      "category": "monitoring",
+      "azure": {
+        "name": "Traffic Analytics (Network Watcher)",
+        "description": "Managed service that analyzes VNet flow logs to produce visual insights: top talkers, traffic patterns, blocked connections, threat detection, and geographic traffic maps. Built-in dashboards in Azure Portal.",
+        "keyDetail": "Turnkey visual analytics\u2014enable it and get dashboards immediately. Powered by Log Analytics. Shows traffic maps, allowed/blocked flows, security threats. No query writing needed for basic use.",
+        "url": "https://learn.microsoft.com/en-us/azure/network-watcher/traffic-analytics",
+        "diagram": "graph TD\n  TA[\"Traffic\\nAnalytics\"] --> V[\"Visual\\nDashboard\"]\n  style TA fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "VPC Flow Logs + Amazon Athena + QuickSight",
+        "description": "DIY analytics pipeline: Flow Logs \u2192 S3 \u2192 Athena (SQL queries) \u2192 QuickSight (dashboards). Powerful but requires setup. No native turnkey traffic analytics equivalent to Azure's offering.",
+        "keyDetail": "Athena: serverless SQL on S3, pay per query (~$5/TB scanned). QuickSight: ~$9-$24/user/mo for dashboards. Full flexibility but you build the analytics pipeline yourself.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html",
+        "diagram": "graph TD\n  FL[\"Flow Logs\"] --> A[\"Athena +\\nQuickSight\"]\n  style FL fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "VPC Flow Logs + BigQuery + Looker Studio",
+        "description": "Similar DIY approach to AWS: export flow logs to BigQuery for SQL analytics, visualize with Looker Studio (formerly Data Studio). Google's scale makes BigQuery fast for large datasets.",
+        "keyDetail": "BigQuery: $6.25/TiB queried on-demand (first 1 TiB/month free). Looker Studio: free for basic dashboards. BigQuery's columnar engine excels at large-scale flow log analysis. No turnkey equivalent to Azure Traffic Analytics.",
+        "url": "https://cloud.google.com/vpc/docs/flow-logs",
+        "diagram": "graph TD\n  FL[\"Flow Logs\"] --> BQ[\"BigQuery +\\nLooker\"]\n  style FL fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure Traffic Analytics is the only turnkey, managed traffic visualization service\u2014enable it and get instant dashboards with threat detection, top talkers, and geographic maps. AWS and GCP both require building a DIY pipeline (flow logs \u2192 data lake \u2192 SQL engine \u2192 BI tool). The DIY approach is more flexible (custom queries, cross-service joins) but requires significantly more setup and SQL expertise.",
+      "practitionerNote": "Azure Traffic Analytics gives you visual maps out of the box \u2014 a notable productivity feature compared to building custom Athena or BigQuery pipelines. AWS teams end up building Athena queries and QuickSight dashboards from scratch. GCP teams use BigQuery + Looker Studio. Both work well but take hours to set up vs Azure's click-to-enable. Third-party tools like Kentik or Datadog can normalize this across clouds.",
+      "conceptName": "Traffic Analytics"
+    },
+    {
+      "id": "connection-monitoring",
+      "category": "monitoring",
+      "azure": {
+        "name": "Connection Monitor (Network Watcher)",
+        "description": "Continuous end-to-end connectivity monitoring between Azure VMs, on-prem hosts, URLs, and IPs. Measures latency, packet loss, and hop-by-hop topology. Supports TCP, ICMP, and HTTP probes.",
+        "keyDetail": "No agent needed on destination. Cross-subscription/workspace monitoring. Real-time latency + loss + topology visualization. Supports hybrid via Arc-enabled servers.",
+        "url": "https://learn.microsoft.com/en-us/azure/network-watcher/connection-monitor-overview",
+        "diagram": "graph TD\n  CM[\"Connection\\nMonitor\"] --> H[\"Per-Hop\\nLatency\"]\n  style CM fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Network Flow Monitor",
+        "description": "Network Flow Monitor (launched 2024): real-time packet loss/latency between EC2 instances \u2014 a new service, not a rename of CloudWatch Network Monitor. Internet Monitor: tracks internet-facing app health worldwide. Synthetic Monitor: probes for hybrid connections.",
+        "keyDetail": "Three separate tools for different scopes. Network Monitor for inter-instance. Internet Monitor for global internet path health. Synthetic for hybrid. Tightly integrated with CloudWatch alarms.",
+        "url": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-NetworkFlowMonitor.html",
+        "diagram": "graph TD\n  NFM[\"Network Flow\\nMonitor\"] --> M[\"Flow\\nMetrics\"]\n  style NFM fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Uptime Checks (Cloud Monitoring)",
+        "description": "Periodic HTTP(S), TCP, or ICMP probes from multiple global locations to endpoints. Focused on availability/uptime rather than path analysis. Integrates with SLO-based alerting.",
+        "keyDetail": "Global probe locations for external health checks. No internal path topology or hop-by-hop analysis. Best for SRE uptime/SLO monitoring. Free tier available.",
+        "url": "https://cloud.google.com/monitoring/uptime-checks/introduction",
+        "diagram": "graph TD\n  UC[\"Uptime\\nChecks\"] --> A[\"HTTP/TCP\\nProbes\"]\n  style UC fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure Connection Monitor provides the most detailed end-to-end path analysis with hop-by-hop topology for both cloud and hybrid connections. AWS splits this across three tools (Network Monitor, Internet Monitor, Synthetic Monitor) covering different scopes. GCP Uptime Checks are simpler\u2014focused on endpoint availability rather than network path analysis. Azure is the only service that offering topology visualization of the monitored connection path.",
+      "practitionerNote": "Azure Connection Monitor is the comprehensive single tool for 'is my network path healthy?'\u2014it shows every hop, latency per hop, and packet loss. AWS has better internet path visibility via Internet Monitor (unique feature). GCP Uptime Checks focus on endpoint availability rather than network path analysis. For hybrid network monitoring, Azure Connection Monitor with Arc agents is the well-established solution.",
+      "conceptName": "Connection Monitoring"
+    },
+    {
+      "id": "packet-capture",
+      "category": "monitoring",
+      "azure": {
+        "name": "Network Watcher Packet Capture",
+        "description": "Captures packets at NIC level on Azure VMs. Stores to local disk or Blob Storage. Supports filters (protocol, port, IP), session limits, and continuous capture (preview) with ring buffer up to 7 days.",
+        "keyDetail": "Requires Network Watcher VM extension on target VMs. Max 100 concurrent captures per region, 10,000 per subscription. Output as .cap files for Wireshark analysis. Triggered by alerts for automated capture.",
+        "url": "https://learn.microsoft.com/en-us/azure/network-watcher/packet-capture-overview",
+        "diagram": "graph TD\n  PC[\"NW Packet\\nCapture\"] --> A[\"Ad-hoc\\nOn-demand\"]\n  style PC fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "VPC Traffic Mirroring",
+        "description": "Mirrors real network traffic from ENIs to monitoring appliances (EC2, NLB targets) for real-time deep packet inspection. No agent required\u2014native to Nitro-based instances.",
+        "keyDetail": "Full packet copy (not sampled). Granular filter rules. Mirrors to collector instances/NLBs. No agent needed on source. Supports centralized multi-account architectures. Best for IDS/IPS.",
+        "url": "https://docs.aws.amazon.com/vpc/latest/mirroring/what-is-traffic-mirroring.html",
+        "diagram": "graph TD\n  TM[\"Traffic\\nMirroring\"] --> C[\"Continuous\\nStream\"]\n  style TM fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Packet Mirroring",
+        "description": "Mirrors all packet data from VM NICs to collector instance groups behind an Internal LB. Configurable by subnet, tag, or instance name. Supports ingress, egress, or both.",
+        "keyDetail": "Full packet mirror (headers + payload). Policy-based selection (subnet, tag, instance). Collector behind ILB for HA. No agent required. Bandwidth cost for mirrored traffic.",
+        "url": "https://cloud.google.com/vpc/docs/packet-mirroring",
+        "diagram": "graph TD\n  PM[\"Packet\\nMirroring\"] --> C[\"Continuous\\nTo ILB\"]\n  style PM fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure's approach is VM-agent-based packet capture stored to files, while AWS and GCP mirror live traffic to collector appliances without agents. AWS and GCP are better suited for real-time IDS/IPS integration (traffic mirroring to NVAs). Azure's packet capture is more suited for on-demand troubleshooting. AWS and GCP can capture continuously at scale; Azure's continuous capture is still in preview.",
+      "practitionerNote": "For security teams needing real-time DPI/IDS, AWS Traffic Mirroring and GCP Packet Mirroring are better suited for real-time DPI/IDS\u2014they mirror full traffic to security appliances without agents. Azure's packet capture is great for ad-hoc troubleshooting but doesn't scale the same way for continuous monitoring. If you're running Suricata/Zeek, AWS/GCP traffic mirroring provides the required continuous packet stream.",
+      "conceptName": "Packet Capture / Traffic Mirroring"
+    },
+    {
+      "id": "network-topology-visualization",
+      "category": "monitoring",
+      "azure": {
+        "name": "Network Watcher Topology / Network Insights",
+        "description": "Interactive visual topology of Azure network resources (VNets, subnets, VMs, NSGs, LBs, gateways). 2024 update added cross-region, cross-subscription support. Export as SVG. Health overlays.",
+        "keyDetail": "Broadest resource type coverage. Cross-region/subscription in single view (2024 update). SVG export for documentation. Integrated with resource health and traffic analytics.",
+        "url": "https://learn.microsoft.com/en-us/azure/network-watcher/network-watcher-topology-overview",
+        "diagram": "graph TD\n  NT[\"NW Topology\\nView\"] --> S[\"SVG\\nExport\"]\n  style NT fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS Network Manager Topology",
+        "description": "Centralized topology viewer for VPCs, Transit Gateways, peering, and hybrid connections. Geographic and logical map views. Traffic metrics overlay. Part of AWS Network Manager.",
+        "keyDetail": "Best for Transit Gateway-centric architectures. Geographic mapping of global network. Multi-account support. Route analysis integration. Third-party tools (CloudWrangler) add more granularity.",
+        "url": "https://docs.aws.amazon.com/network-manager/latest/tgwnm/nm-visualize-tgw.html",
+        "diagram": "graph TD\n  NM[\"Network\\nManager\"] --> T[\"Topology\\nMap\"]\n  style NM fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Network Topology (Network Intelligence Center)",
+        "description": "Visualizes VPCs, subnets, instances, LBs, firewall rules, and hybrid connections. Traffic flow overlays with real-time metrics. Part of Network Intelligence Center alongside Connectivity Tests.",
+        "keyDetail": "Scoping by project, folder, or organization. Provides real-time traffic overlay and dependency mapping. Hybrid connectivity visualization (Interconnect/VPN). Less mature than Azure/AWS but functional.",
+        "url": "https://cloud.google.com/network-intelligence-center/docs/network-topology/concepts/overview",
+        "diagram": "graph TD\n  NIC[\"NIC Network\\nTopology\"] --> T[\"Interactive\\nGraph\"]\n  style NIC fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure's topology viewer has the broad resource coverage and newest cross-region/subscription capabilities (2024 update). AWS Network Manager excels for Transit Gateway and hybrid network visualization with geographic mapping. GCP's Network Topology is part of the Network Intelligence Center bundle and focuses on traffic flow visualization. All three are portal-based and auto-discover resources.",
+      "practitionerNote": "Azure's 2024 topology update added cross-region/subscription views\u2014cross-region views in a single pane are useful for large environments. AWS Network Manager topology is essential if you're using Transit Gateway. GCP's offering focuses on traffic flow visualization. For production documentation, Azure's SVG export is handy. For multi-cloud visibility, consider third-party tools like Aviatrix or Alkira that show all three clouds in one view.",
+      "conceptName": "Network Topology Visualization"
+    },
+    {
+      "id": "private-connectivity-monitoring",
+      "category": "monitoring",
+      "azure": {
+        "name": "ExpressRoute Traffic Collector",
+        "description": "Samples network flows over ExpressRoute circuits for traffic analytics. Collects flow logs at 1-minute intervals with 1:4096 packet sampling. Logs to Log Analytics, Event Hubs, or Storage.",
+        "keyDetail": "Supported on 1Gbps-100Gbps circuits (Provider & Direct). Monitors private + Microsoft peering. Fixed sampling rate (not configurable). Rich schema: IPs, ports, VLANs, ASNs.",
+        "url": "https://learn.microsoft.com/en-us/azure/expressroute/traffic-collector",
+        "diagram": "graph TD\n  ETC[\"ER Traffic\\nCollector\"] --> M[\"Flow\\nMetrics\"]\n  style ETC fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "Direct Connect CloudWatch Metrics",
+        "description": "Native CloudWatch integration for Direct Connect monitoring. Tracks connection state (up/down), inbound/outbound bitrate, and packet rates. Alarms and automated actions via CloudWatch.",
+        "keyDetail": "Metrics at 1-5 minute intervals. No flow-level detail (aggregated bitrate/state only). Strong operational monitoring but lacks the flow-level depth of Azure's Traffic Collector.",
+        "url": "https://docs.aws.amazon.com/directconnect/latest/UserGuide/monitoring-cloudwatch.html",
+        "diagram": "graph TD\n  DX[\"DX\\nCloudWatch\"] --> M[\"Connection\\nMetrics\"]\n  style DX fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Cloud Interconnect Monitoring (Operations Suite)",
+        "description": "Monitoring via Cloud Operations Suite (Google Cloud Observability). VPC Flow Logs on connected VPCs provide flow-level detail at 5-second aggregation. Dashboard, alerting, and export to BigQuery.",
+        "keyDetail": "Flow-level visibility via VPC Flow Logs on interconnected VPCs. Integrates with Security Command Center. No dedicated interconnect-specific flow collector like Azure's.",
+        "url": "https://cloud.google.com/network-connectivity/docs/interconnect/how-to/monitoring",
+        "diagram": "graph TD\n  IC[\"Interconnect\\nMonitoring\"] --> M[\"Link\\nMetrics\"]\n  style IC fill:#EA4335,color:#fff"
+      },
+      "differences": "Azure's ExpressRoute Traffic Collector is the only dedicated private connectivity flow analytics tool\u2014it provides sampled flow logs specifically for ExpressRoute traffic. AWS Direct Connect monitoring is metric-level only (bitrate, state, packet count) without flow-level detail. GCP relies on VPC Flow Logs on connected subnets, which gives flow data but isn't specific to the Interconnect path. Azure provides the most detailed flow-level visibility for private circuit traffic.",
+      "practitionerNote": "If you're troubleshooting 'what traffic is using my ExpressRoute circuit?', Azure's Traffic Collector answers that directly with flow-level data. AWS Direct Connect CloudWatch tells you throughput and health but not what's in the pipe. GCP's approach (VPC Flow Logs) gives you flows but you can't isolate Interconnect-specific traffic easily. For ER/DX heavy environments, Azure's integrated approach simplifies this.",
+      "conceptName": "Private Connectivity Monitoring"
+    },
+    {
+      "id": "infrastructure-as-code",
+      "category": "operations",
+      "azure": {
+        "name": "Bicep / ARM Templates (+ Terraform)",
+        "description": "Bicep is Azure's native DSL that compiles to ARM JSON. Modular, readable, with strong type safety and VS Code tooling. ARM templates are the underlying JSON format. Terraform also has full Azure provider support.",
+        "keyDetail": "Bicep: Azure-only but concise cloud-native IaC. ARM: verbose JSON but fully featured. Both get Day 0 support for new Azure resources. Terraform azurerm provider has near-parity; AzAPI provider enables Day 0 ARM resource support for Terraform.",
+        "url": "https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview",
+        "diagram": "graph TD\n  B[\"Bicep /\\nARM\"] --> D[\"Declarative\\nNative\"]\n  style B fill:#0078D4,color:#fff"
+      },
+      "aws": {
+        "name": "AWS CloudFormation (+ Terraform + CDK)",
+        "description": "CloudFormation: AWS-native IaC using YAML/JSON with stack management, drift detection, and rollback. CDK: write infrastructure in TypeScript/Python/Java that compiles to CloudFormation. Terraform has full AWS provider.",
+        "keyDetail": "CloudFormation: AWS-only, automatic dependency resolution, nested stacks. CDK adds type-safe programming language abstractions. Terraform aws provider is the most popular IaC tool for AWS.",
+        "url": "https://docs.aws.amazon.com/cloudformation/",
+        "diagram": "graph TD\n  CFN[\"CloudFormation\\n/ CDK\"] --> D[\"Native +\\nL2 Constructs\"]\n  style CFN fill:#FF9900,color:#fff"
+      },
+      "gcp": {
+        "name": "Infrastructure Manager (+ Terraform, Pulumi)",
+        "description": "Managed Terraform service (Deployment Manager, GA 2024). Legacy Deployment Manager (Terraform-based) is deprecated (EOL 2026). Many teams use Terraform or Pulumi directly.",
+        "keyDetail": "Infrastructure Manager GA Aug 2023. Infrastructure Manager (Terraform-based, GA) EOL March 2026.",
+        "url": "https://cloud.google.com/infrastructure-manager/docs/overview",
+        "diagram": "graph TD\n  TF[\"Terraform /\\nInfra Manager\"] --> D[\"HCL\\nNative\"]\n  style TF fill:#EA4335,color:#fff"
+      },
+      "differences": "Each cloud has a native IaC tool (Bicep/ARM, CloudFormation, Deployment Manager) but Terraform works across all three and is the most widely used multi-cloud IaC tool. Bicep uses a concise declarative syntax; CloudFormation is the longest-established; Deployment Manager is nearing end-of-life (Google recommends Terraform). For networking specifically, all native tools have full coverage, but Terraform modules let you define consistent networking patterns across clouds.",
+      "practitionerNote": "For single-cloud, use the native tool (Bicep for Azure, CloudFormation for AWS). For multi-cloud or hybrid networking, Terraform is the most widely adopted option\u2014consistent HCL syntax across providers. GCP's Deployment Manager is officially deprecated (EOL March 2026); Google now directs customers to Infrastructure Manager (Terraform-based) or standalone Terraform. If you're managing networking across clouds, Terraform modules + a CI/CD pipeline is the standard pattern. AWS CDK is interesting if your team prefers TypeScript over YAML.",
+      "conceptName": "Infrastructure as Code"
+    }
+  ]
+}
