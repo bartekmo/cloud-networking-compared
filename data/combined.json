@@ -137,8 +137,8 @@
       },
       "gcp": {
         "name": "Network Interface",
-        "description": "A network connection for a Compute Engine VM. Unlike Azure/AWS, GCP NICs are not independent resources \u2014 they are defined as part of the VM configuration and cannot be detached.",
-        "keyDetail": "NICs per VM varies by machine type (typically 2-8, based on vCPU count). Each NIC supports 1 primary + up to 150 alias IP ranges. NICs cannot be moved between VMs.",
+        "description": "A network connection for a Compute Engine VM. Unlike Azure/AWS, GCP NICs are not independent resources \u2014 they are defined as part of the VM configuration and cannot be detached. Recently added Dynamic NICs can be added and deleted without stopping or redeploying a VM but still do not exist as independent API resources.",
+        "keyDetail": "NICs per VM varies by machine size (2-10 for standard NICs, up to 15 for dynamic NICs, based on vCPU count). Each NIC supports 1 primary + up to 150 alias IP ranges. NICs cannot be moved between VMs.",
         "url": "https://cloud.google.com/vpc/docs/multiple-interfaces-concepts",
         "diagram": "graph TD\n  VM[\"VM\"] --> NIC[\"NIC\\n(Non-portable)\"]\n  style NIC fill:#EA4335,color:#fff"
       },
